@@ -3,6 +3,7 @@ import type { ScrollBoxRenderable } from "@opentui/core";
 import { useKeyboard } from "@opentui/react";
 import { getFilteredCommands } from "./filter-commands";
 import type { Command } from "./types";
+import { useKeyboardLayer } from "../../providers/keyboard-layer";
 
 type UseCommandMenuReturn = {
     showCommandMenu: boolean;
@@ -19,6 +20,14 @@ export function useCommandMenu():UseCommandMenuReturn {
     const [textValue,setTextValue] = useState("");
     const [selectedIndex,setSelectedIndex] = useState(0);
     const [showCommandMenu,setShowCommandMenu] = useState(false);
+
+    const { push, pop, isTopLayer, setResponder } = useKeyboardLayer();
+
+    // Closing the menu also releases the "command" keyboard layer.
+    const close = ()=>{
+        setShowCommandMenu(false);
+        pop("command");
+    }
 
     // Text after "/" used for prefix filtering; empty string shows all commands.
     const commandQuery = showCommandMenu && textValue.startsWith("/") ? textValue.slice(1) : "";
@@ -39,25 +48,31 @@ export function useCommandMenu():UseCommandMenuReturn {
         // Keep menu open only while typing a single token: "/new", not "/new arg".
         if(prefix !== null && !prefix.includes(" ")){
             setShowCommandMenu(true);
+            // Ctrl+C while the menu is open clears input instead of exiting.
+            push("command",()=>{
+                close();
+                return true;
+            })
         }else{
-            setShowCommandMenu(false);
+            close();
         }
     };
 
     const resolveCommand = (index:number):Command | undefined => {
         const command = filteredCommands[index];
         if(command){
-            setShowCommandMenu(false);
+           close();
         }
         return command;
     }
 
     // Arrow keys and Escape are handled here; Enter is handled by InputBar onSubmit.
+    // Ignore keys when a dialog sits above the command menu on the layer stack.
     useKeyboard((key)=>{
-        if(!showCommandMenu) return;
+        if(!showCommandMenu || !isTopLayer("command")) return;
         if(key.name === "escape") {
             key.preventDefault();
-            setShowCommandMenu(false);
+            close();
         }else if(key.name === "up") {
             key.preventDefault();
             setSelectedIndex((i:number)=>{

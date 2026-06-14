@@ -8,18 +8,23 @@ import {
   enableTerminalKeyboardProtocols,
   KITTY_KEYBOARD_OPTIONS,
 } from "./terminal-keyboard";
+import { ToastProvider } from "./providers/toast";
+import { KeyboardLayerProvider } from "./providers/keyboard-layer";
+import { DialogProvider } from "./providers/dialog";
+import { ThemeProvider,useTheme } from "./providers/theme";
 
 // Handle `--terminal-setup` before booting the TUI (macOS Apple Terminal only).
 if (runTerminalSetupFromArgv(process.argv.slice(2))) {
   process.exit(0);
 }
 
-function App() {
+function ThemeRoot(){
+  const {colors} = useTheme();
   return (
     <box 
       alignItems="center" 
       justifyContent="center" 
-      backgroundColor="#0D0D12"
+      backgroundColor={colors.background}
       width="100%"
       height="100%"
       gap={2}
@@ -28,8 +33,25 @@ function App() {
       <box width="100%" maxWidth={78} paddingX={2}>
         <InputBar onSubmit={()=>{}} />
       </box>
-     
+    
     </box>
+  )
+}
+
+// Provider order: theme tokens → keyboard stack → modal overlays → toasts.
+function App() {
+  return (
+   
+    <ThemeProvider>
+      <KeyboardLayerProvider>
+        <DialogProvider>
+          <ToastProvider>
+            <ThemeRoot />
+          </ToastProvider>
+        </DialogProvider>
+      </KeyboardLayerProvider>
+    </ThemeProvider>
+
   );
 }
 
