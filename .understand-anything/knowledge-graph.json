@@ -1,0 +1,893 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "mocode",
+    "languages": [
+      "typescript",
+      "json",
+      "markdown"
+    ],
+    "frameworks": [
+      "React",
+      "OpenTUI",
+      "Bun"
+    ],
+    "description": "MoCode — 基于 OpenTUI 和 React 的终端 CLI 应用 monorepo，当前包含交互式命令行界面包 @mocode/cli。",
+    "analyzedAt": "2026-06-14T03:34:43.121Z",
+    "gitCommitHash": "2abdbf1bbb33acc36c72989f9e6729caa4d38a2a"
+  },
+  "nodes": [
+    {
+      "id": "file:packages/cli/src/components/command-menu/commands.tsx",
+      "type": "file",
+      "name": "commands.tsx",
+      "filePath": "packages/cli/src/components/command-menu/commands.tsx",
+      "summary": "定义 MoCode CLI 可用的斜杠命令列表，包括会话、模型、主题、登录与退出等操作。",
+      "tags": [
+        "component",
+        "配置",
+        "slash-command"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:packages/cli/src/components/command-menu/filter-commands.tsx",
+      "type": "file",
+      "name": "filter-commands.tsx",
+      "filePath": "packages/cli/src/components/command-menu/filter-commands.tsx",
+      "summary": "根据用户输入前缀过滤斜杠命令，支持按命令名开头匹配。",
+      "tags": [
+        "utility",
+        "component"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:packages/cli/src/components/command-menu/index.tsx",
+      "type": "file",
+      "name": "index.tsx",
+      "filePath": "packages/cli/src/components/command-menu/index.tsx",
+      "summary": "渲染可滚动的命令菜单 UI，展示命令名与描述并支持键盘与鼠标选择。",
+      "tags": [
+        "component",
+        "ui"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:packages/cli/src/components/command-menu/types.ts",
+      "type": "file",
+      "name": "types.ts",
+      "filePath": "packages/cli/src/components/command-menu/types.ts",
+      "summary": "声明命令对象与执行上下文类型，含可选的 action 回调与 exit 钩子。",
+      "tags": [
+        "type-definition",
+        "component"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:packages/cli/src/components/command-menu/use-command-menu.ts",
+      "type": "file",
+      "name": "use-command-menu.ts",
+      "filePath": "packages/cli/src/components/command-menu/use-command-menu.ts",
+      "summary": "管理命令菜单的显示状态、搜索词、选中项与键盘导航逻辑。",
+      "tags": [
+        "hook",
+        "component",
+        "keyboard"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:packages/cli/src/components/command-menu/filter-commands.tsx:getFilteredCommands",
+      "type": "function",
+      "name": "getFilteredCommands",
+      "filePath": "packages/cli/src/components/command-menu/filter-commands.tsx",
+      "summary": "按查询字符串过滤 COMMANDS 列表，空查询返回全部命令。",
+      "tags": [
+        "utility",
+        "filter"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:packages/cli/src/components/command-menu/index.tsx:CommandMenu",
+      "type": "function",
+      "name": "CommandMenu",
+      "filePath": "packages/cli/src/components/command-menu/index.tsx",
+      "summary": "根据过滤结果绘制命令列表，高亮当前选中项并处理鼠标交互。",
+      "tags": [
+        "component",
+        "ui"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:packages/cli/src/components/command-menu/use-command-menu.ts:useCommandMenu",
+      "type": "function",
+      "name": "useCommandMenu",
+      "filePath": "packages/cli/src/components/command-menu/use-command-menu.ts",
+      "summary": "在输入以 / 开头时打开菜单，处理上下键、Escape 与滚动同步。",
+      "tags": [
+        "hook",
+        "keyboard"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:packages/cli/src/components/border.tsx",
+      "type": "file",
+      "name": "border.tsx",
+      "filePath": "packages/cli/src/components/border.tsx",
+      "summary": "提供 OpenTUI 边框字符常量，用于输入框左侧装饰线样式。",
+      "tags": [
+        "utility",
+        "ui",
+        "styling"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:packages/cli/src/components/input-bar.tsx",
+      "type": "file",
+      "name": "input-bar.tsx",
+      "filePath": "packages/cli/src/components/input-bar.tsx",
+      "summary": "主输入区域：集成 textarea、斜杠命令菜单与状态栏，处理提交与换行快捷键。",
+      "tags": [
+        "component",
+        "entry-point",
+        "keyboard"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:packages/cli/src/components/status-bar.tsx",
+      "type": "file",
+      "name": "status-bar.tsx",
+      "filePath": "packages/cli/src/components/status-bar.tsx",
+      "summary": "底部状态栏，展示构建模式、模型名与提交/换行快捷键提示。",
+      "tags": [
+        "component",
+        "ui"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:packages/cli/src/terminal-capabilities.ts",
+      "type": "file",
+      "name": "terminal-capabilities.ts",
+      "filePath": "packages/cli/src/terminal-capabilities.ts",
+      "summary": "检测终端是否支持 Shift+Enter，并为 Apple Terminal 等生成换行提示文案。",
+      "tags": [
+        "utility",
+        "terminal"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:packages/cli/src/components/input-bar.tsx:InputBar",
+      "type": "function",
+      "name": "InputBar",
+      "filePath": "packages/cli/src/components/input-bar.tsx",
+      "summary": "组合命令菜单与 textarea，根据 / 前缀切换菜单模式并执行斜杠命令。",
+      "tags": [
+        "component",
+        "keyboard"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:packages/cli/src/components/status-bar.tsx:StatusBar",
+      "type": "function",
+      "name": "StatusBar",
+      "filePath": "packages/cli/src/components/status-bar.tsx",
+      "summary": "读取 getNewlineHint 并渲染模型与快捷键说明。",
+      "tags": [
+        "component",
+        "ui"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:packages/cli/src/terminal-capabilities.ts:getNewlineHint",
+      "type": "function",
+      "name": "getNewlineHint",
+      "filePath": "packages/cli/src/terminal-capabilities.ts",
+      "summary": "根据终端能力返回提交与换行的快捷键提示。",
+      "tags": [
+        "utility",
+        "terminal"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:packages/cli/src/terminal-capabilities.ts:terminalSupportsShiftEnter",
+      "type": "function",
+      "name": "terminalSupportsShiftEnter",
+      "filePath": "packages/cli/src/terminal-capabilities.ts",
+      "summary": "判断当前终端是否能区分 Shift+Enter。",
+      "tags": [
+        "utility",
+        "terminal"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:packages/cli/src/terminal-capabilities.ts:isAppleTerminal",
+      "type": "function",
+      "name": "isAppleTerminal",
+      "filePath": "packages/cli/src/terminal-capabilities.ts",
+      "summary": "检测是否在 Apple Terminal 中运行。",
+      "tags": [
+        "utility",
+        "terminal"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:packages/cli/src/components/header.tsx",
+      "type": "file",
+      "name": "header.tsx",
+      "filePath": "packages/cli/src/components/header.tsx",
+      "summary": "应用顶部 ASCII 艺术字标题 MoCode。",
+      "tags": [
+        "component",
+        "ui"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:packages/cli/src/index.tsx",
+      "type": "file",
+      "name": "index.tsx",
+      "filePath": "packages/cli/src/index.tsx",
+      "summary": "CLI 入口：初始化 OpenTUI renderer、键盘协议并挂载 App 与 InputBar。",
+      "tags": [
+        "entry-point",
+        "bootstrap"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:packages/cli/src/terminal-keyboard.ts",
+      "type": "file",
+      "name": "terminal-keyboard.ts",
+      "filePath": "packages/cli/src/terminal-keyboard.ts",
+      "summary": "启用 Kitty keyboard 与 xterm modifyOtherKeys，使 Shift+Enter 可被区分。",
+      "tags": [
+        "utility",
+        "terminal",
+        "keyboard"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:packages/cli/src/terminal-setup.ts",
+      "type": "file",
+      "name": "terminal-setup.ts",
+      "filePath": "packages/cli/src/terminal-setup.ts",
+      "summary": "处理 --terminal-setup 参数，为 Apple Terminal 配置 Option 作为 Meta 键。",
+      "tags": [
+        "utility",
+        "terminal",
+        "cli"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:packages/cli/src/components/header.tsx:Header",
+      "type": "function",
+      "name": "Header",
+      "filePath": "packages/cli/src/components/header.tsx",
+      "summary": "渲染 Mo / Code ASCII 标题组合。",
+      "tags": [
+        "component",
+        "ui"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:packages/cli/src/terminal-keyboard.ts:enableTerminalKeyboardProtocols",
+      "type": "function",
+      "name": "enableTerminalKeyboardProtocols",
+      "filePath": "packages/cli/src/terminal-keyboard.ts",
+      "summary": "在 renderer 上启用增强键盘协议。",
+      "tags": [
+        "utility",
+        "terminal"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:packages/cli/src/terminal-keyboard.ts:disableTerminalKeyboardProtocols",
+      "type": "function",
+      "name": "disableTerminalKeyboardProtocols",
+      "filePath": "packages/cli/src/terminal-keyboard.ts",
+      "summary": "关闭 modifyOtherKeys 协议。",
+      "tags": [
+        "utility",
+        "terminal"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:packages/cli/src/terminal-setup.ts:setupAppleTerminal",
+      "type": "function",
+      "name": "setupAppleTerminal",
+      "filePath": "packages/cli/src/terminal-setup.ts",
+      "summary": "通过 PlistBuddy 修改 Terminal 配置启用 Meta 键。",
+      "tags": [
+        "utility",
+        "terminal"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:packages/cli/src/terminal-setup.ts:runTerminalSetupFromArgv",
+      "type": "function",
+      "name": "runTerminalSetupFromArgv",
+      "filePath": "packages/cli/src/terminal-setup.ts",
+      "summary": "解析 argv 中的 --terminal-setup 并执行配置或退出。",
+      "tags": [
+        "cli",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:README.md",
+      "type": "document",
+      "name": "README.md",
+      "filePath": "README.md",
+      "summary": "项目标题文档，当前仅包含 MoCode 名称。",
+      "tags": [
+        "documentation",
+        "entry-point"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:package.json",
+      "type": "config",
+      "name": "package.json",
+      "filePath": "package.json",
+      "summary": "Monorepo 根配置，定义 workspaces 与 dev:cli 开发脚本。",
+      "tags": [
+        "configuration",
+        "build-system",
+        "monorepo"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:tsconfig.base.json",
+      "type": "config",
+      "name": "tsconfig.base.json",
+      "filePath": "tsconfig.base.json",
+      "summary": "共享 TypeScript 编译选项，供各 package 继承。",
+      "tags": [
+        "configuration",
+        "typescript"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:packages/cli/package.json",
+      "type": "config",
+      "name": "package.json",
+      "filePath": "packages/cli/package.json",
+      "summary": "@mocode/cli 包配置：依赖 OpenTUI、React 与 Bun 开发环境。",
+      "tags": [
+        "configuration",
+        "package"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:packages/cli/tsconfig.json",
+      "type": "config",
+      "name": "tsconfig.json",
+      "filePath": "packages/cli/tsconfig.json",
+      "summary": "CLI 包的 TypeScript 配置，继承根 tsconfig.base.json。",
+      "tags": [
+        "configuration",
+        "typescript"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:.understand-anything/config.json",
+      "type": "config",
+      "name": "config.json",
+      "filePath": ".understand-anything/config.json",
+      "summary": "Understand Anything 输出语言等分析配置。",
+      "tags": [
+        "configuration"
+      ],
+      "complexity": "simple"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:packages/cli/src/components/command-menu/commands.tsx",
+      "target": "file:packages/cli/src/components/command-menu/types.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/command-menu/filter-commands.tsx",
+      "target": "file:packages/cli/src/components/command-menu/commands.tsx",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/command-menu/filter-commands.tsx",
+      "target": "file:packages/cli/src/components/command-menu/types.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/command-menu/index.tsx",
+      "target": "file:packages/cli/src/components/command-menu/commands.tsx",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/command-menu/index.tsx",
+      "target": "file:packages/cli/src/components/command-menu/filter-commands.tsx",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/command-menu/use-command-menu.ts",
+      "target": "file:packages/cli/src/components/command-menu/filter-commands.tsx",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/command-menu/use-command-menu.ts",
+      "target": "file:packages/cli/src/components/command-menu/types.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/command-menu/filter-commands.tsx",
+      "target": "function:packages/cli/src/components/command-menu/filter-commands.tsx:getFilteredCommands",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/command-menu/filter-commands.tsx",
+      "target": "function:packages/cli/src/components/command-menu/filter-commands.tsx:getFilteredCommands",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/command-menu/index.tsx",
+      "target": "function:packages/cli/src/components/command-menu/index.tsx:CommandMenu",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/command-menu/index.tsx",
+      "target": "function:packages/cli/src/components/command-menu/index.tsx:CommandMenu",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/command-menu/use-command-menu.ts",
+      "target": "function:packages/cli/src/components/command-menu/use-command-menu.ts:useCommandMenu",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/command-menu/use-command-menu.ts",
+      "target": "function:packages/cli/src/components/command-menu/use-command-menu.ts:useCommandMenu",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:packages/cli/src/components/command-menu/filter-commands.tsx:getFilteredCommands",
+      "target": "file:packages/cli/src/components/command-menu/commands.tsx",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:packages/cli/src/components/command-menu/index.tsx:CommandMenu",
+      "target": "function:packages/cli/src/components/command-menu/filter-commands.tsx:getFilteredCommands",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:packages/cli/src/components/command-menu/use-command-menu.ts:useCommandMenu",
+      "target": "function:packages/cli/src/components/command-menu/filter-commands.tsx:getFilteredCommands",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/input-bar.tsx",
+      "target": "file:packages/cli/src/components/border.tsx",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/input-bar.tsx",
+      "target": "file:packages/cli/src/components/command-menu/index.tsx",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/input-bar.tsx",
+      "target": "file:packages/cli/src/components/command-menu/types.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/input-bar.tsx",
+      "target": "file:packages/cli/src/components/command-menu/use-command-menu.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/input-bar.tsx",
+      "target": "file:packages/cli/src/components/status-bar.tsx",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/status-bar.tsx",
+      "target": "file:packages/cli/src/terminal-capabilities.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/input-bar.tsx",
+      "target": "function:packages/cli/src/components/input-bar.tsx:InputBar",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/input-bar.tsx",
+      "target": "function:packages/cli/src/components/input-bar.tsx:InputBar",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/status-bar.tsx",
+      "target": "function:packages/cli/src/components/status-bar.tsx:StatusBar",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/status-bar.tsx",
+      "target": "function:packages/cli/src/components/status-bar.tsx:StatusBar",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/terminal-capabilities.ts",
+      "target": "function:packages/cli/src/terminal-capabilities.ts:getNewlineHint",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/terminal-capabilities.ts",
+      "target": "function:packages/cli/src/terminal-capabilities.ts:getNewlineHint",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/terminal-capabilities.ts",
+      "target": "function:packages/cli/src/terminal-capabilities.ts:terminalSupportsShiftEnter",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/terminal-capabilities.ts",
+      "target": "function:packages/cli/src/terminal-capabilities.ts:terminalSupportsShiftEnter",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/terminal-capabilities.ts",
+      "target": "function:packages/cli/src/terminal-capabilities.ts:isAppleTerminal",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/terminal-capabilities.ts",
+      "target": "function:packages/cli/src/terminal-capabilities.ts:isAppleTerminal",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:packages/cli/src/components/status-bar.tsx:StatusBar",
+      "target": "function:packages/cli/src/terminal-capabilities.ts:getNewlineHint",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:packages/cli/src/components/input-bar.tsx:InputBar",
+      "target": "function:packages/cli/src/components/command-menu/use-command-menu.ts:useCommandMenu",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "function:packages/cli/src/components/input-bar.tsx:InputBar",
+      "target": "function:packages/cli/src/components/command-menu/index.tsx:CommandMenu",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/index.tsx",
+      "target": "file:packages/cli/src/components/header.tsx",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/index.tsx",
+      "target": "file:packages/cli/src/components/input-bar.tsx",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/index.tsx",
+      "target": "file:packages/cli/src/terminal-keyboard.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/index.tsx",
+      "target": "file:packages/cli/src/terminal-setup.ts",
+      "type": "imports",
+      "weight": 0.7,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/header.tsx",
+      "target": "function:packages/cli/src/components/header.tsx:Header",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/components/header.tsx",
+      "target": "function:packages/cli/src/components/header.tsx:Header",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/terminal-keyboard.ts",
+      "target": "function:packages/cli/src/terminal-keyboard.ts:enableTerminalKeyboardProtocols",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/terminal-keyboard.ts",
+      "target": "function:packages/cli/src/terminal-keyboard.ts:enableTerminalKeyboardProtocols",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/terminal-keyboard.ts",
+      "target": "function:packages/cli/src/terminal-keyboard.ts:disableTerminalKeyboardProtocols",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/terminal-keyboard.ts",
+      "target": "function:packages/cli/src/terminal-keyboard.ts:disableTerminalKeyboardProtocols",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/terminal-setup.ts",
+      "target": "function:packages/cli/src/terminal-setup.ts:setupAppleTerminal",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/terminal-setup.ts",
+      "target": "function:packages/cli/src/terminal-setup.ts:setupAppleTerminal",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/terminal-setup.ts",
+      "target": "function:packages/cli/src/terminal-setup.ts:runTerminalSetupFromArgv",
+      "type": "contains",
+      "weight": 1,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/terminal-setup.ts",
+      "target": "function:packages/cli/src/terminal-setup.ts:runTerminalSetupFromArgv",
+      "type": "exports",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/index.tsx",
+      "target": "function:packages/cli/src/components/header.tsx:Header",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/index.tsx",
+      "target": "function:packages/cli/src/components/input-bar.tsx:InputBar",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/index.tsx",
+      "target": "function:packages/cli/src/terminal-keyboard.ts:enableTerminalKeyboardProtocols",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    },
+    {
+      "source": "file:packages/cli/src/index.tsx",
+      "target": "function:packages/cli/src/terminal-setup.ts:runTerminalSetupFromArgv",
+      "type": "calls",
+      "weight": 0.8,
+      "direction": "forward"
+    }
+  ],
+  "layers": [
+    {
+      "id": "layer:entry-bootstrap",
+      "name": "入口与启动",
+      "description": "CLI 启动、终端键盘协议与 Apple Terminal 配置工具。",
+      "nodeIds": [
+        "file:packages/cli/src/index.tsx",
+        "file:packages/cli/src/terminal-keyboard.ts",
+        "file:packages/cli/src/terminal-setup.ts"
+      ]
+    },
+    {
+      "id": "layer:ui-components",
+      "name": "界面组件",
+      "description": "OpenTUI/React 组件：标题、输入框、状态栏与边框样式。",
+      "nodeIds": [
+        "file:packages/cli/src/components/header.tsx",
+        "file:packages/cli/src/components/input-bar.tsx",
+        "file:packages/cli/src/components/status-bar.tsx",
+        "file:packages/cli/src/components/border.tsx"
+      ]
+    },
+    {
+      "id": "layer:command-menu",
+      "name": "斜杠命令菜单",
+      "description": "命令定义、过滤、菜单 UI 与 useCommandMenu 状态逻辑。",
+      "nodeIds": [
+        "file:packages/cli/src/components/command-menu/commands.tsx",
+        "file:packages/cli/src/components/command-menu/filter-commands.tsx",
+        "file:packages/cli/src/components/command-menu/index.tsx",
+        "file:packages/cli/src/components/command-menu/types.ts",
+        "file:packages/cli/src/components/command-menu/use-command-menu.ts"
+      ]
+    },
+    {
+      "id": "layer:terminal-utils",
+      "name": "终端能力",
+      "description": "检测终端换行键能力并生成 StatusBar 提示文案。",
+      "nodeIds": [
+        "file:packages/cli/src/terminal-capabilities.ts"
+      ]
+    },
+    {
+      "id": "layer:configuration",
+      "name": "配置与文档",
+      "description": "包管理、TypeScript 配置与项目说明文档。",
+      "nodeIds": [
+        "document:README.md",
+        "config:package.json",
+        "config:tsconfig.base.json",
+        "config:packages/cli/package.json",
+        "config:packages/cli/tsconfig.json",
+        "config:.understand-anything/config.json"
+      ]
+    }
+  ],
+  "tour": [
+    {
+      "order": 1,
+      "title": "项目概览",
+      "description": "从 README 与根 package.json 了解 MoCode monorepo 结构与 dev:cli 启动方式。",
+      "nodeIds": [
+        "document:README.md",
+        "config:package.json"
+      ],
+      "languageLesson": "MoCode 是 Bun workspaces monorepo，当前主要交付 @mocode/cli 终端 UI。"
+    },
+    {
+      "order": 2,
+      "title": "应用入口",
+      "description": "index.tsx 创建 OpenTUI renderer、启用 Kitty 键盘协议并渲染 App 布局。",
+      "nodeIds": [
+        "file:packages/cli/src/index.tsx"
+      ],
+      "languageLesson": "入口在挂载前处理 --terminal-setup，并注册 renderer 销毁时的键盘协议清理。"
+    },
+    {
+      "order": 3,
+      "title": "主输入体验",
+      "description": "InputBar 是用户交互核心：文本输入、斜杠命令与状态栏快捷键提示。",
+      "nodeIds": [
+        "file:packages/cli/src/components/input-bar.tsx",
+        "file:packages/cli/src/components/status-bar.tsx"
+      ],
+      "languageLesson": "Enter 提交、Shift+Enter/Ctrl+J/⌥↵ 换行行为因终端而异，由 terminal-capabilities 统一提示。"
+    },
+    {
+      "order": 4,
+      "title": "斜杠命令系统",
+      "description": "输入 / 触发命令菜单：commands 定义命令，filter 与 hook 处理搜索与键盘导航。",
+      "nodeIds": [
+        "file:packages/cli/src/components/command-menu/commands.tsx",
+        "file:packages/cli/src/components/command-menu/use-command-menu.ts",
+        "file:packages/cli/src/components/command-menu/index.tsx"
+      ],
+      "languageLesson": "命令可带 action（如 /exit 调用 ctx.exit），否则插入 value 到输入框。"
+    },
+    {
+      "order": 5,
+      "title": "终端适配",
+      "description": "keyboard 与 setup 模块解决 Apple Terminal 等环境的换行键识别问题。",
+      "nodeIds": [
+        "file:packages/cli/src/terminal-keyboard.ts",
+        "file:packages/cli/src/terminal-setup.ts",
+        "file:packages/cli/src/terminal-capabilities.ts"
+      ],
+      "languageLesson": "Apple Terminal 需 bun run dev:cli -- --terminal-setup 启用 ⌥↵ 作为 Meta 换行。"
+    }
+  ]
+}

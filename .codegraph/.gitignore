@@ -1,0 +1,13 @@
+# Transient SQLite files
+*.db-wal
+*.db-shm
+
+# Runtime daemon
+daemon.pid
+daemon.sock
+daemon.log
+
+# Cache & logs
+cache/
+*.log
+.dirty

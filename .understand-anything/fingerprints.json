@@ -1,0 +1,564 @@
+{
+  "version": "1.0.0",
+  "gitCommitHash": "2abdbf1bbb33acc36c72989f9e6729caa4d38a2a",
+  "generatedAt": "2026-06-14T03:34:49.478Z",
+  "files": {
+    ".codegraph/daemon.pid": {
+      "filePath": ".codegraph/daemon.pid",
+      "contentHash": "81baa1e214a46f48b9a22026dbe2a74a6fb2697dbd529d1e1a99741e0a9501d2",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 7,
+      "hasStructuralAnalysis": false
+    },
+    ".understand-anything/.understandignore": {
+      "filePath": ".understand-anything/.understandignore",
+      "contentHash": "d5b546961d9a540e940f488afec614145275cb4d41627a0ba14c584a700e1312",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 17,
+      "hasStructuralAnalysis": false
+    },
+    ".understand-anything/config.json": {
+      "filePath": ".understand-anything/config.json",
+      "contentHash": "c580d182c06471d20da334e756934fa65efa6806350e985e2fcf84d3c9e395a4",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 2,
+      "hasStructuralAnalysis": true
+    },
+    "package.json": {
+      "filePath": "package.json",
+      "contentHash": "da4cd3c03c2aa5abeb3c7905a1933dd0074f314daa4f7d0f5483cb975aebeadf",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 12,
+      "hasStructuralAnalysis": true
+    },
+    "packages/cli/package.json": {
+      "filePath": "packages/cli/package.json",
+      "contentHash": "3eba10fd326a3ef8d4c7dc418255c421abc6cf15e2bb7972f8440cc58f4f92da",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 21,
+      "hasStructuralAnalysis": true
+    },
+    "packages/cli/src/components/border.tsx": {
+      "filePath": "packages/cli/src/components/border.tsx",
+      "contentHash": "a878cf493c4664808e125a67ad9f324084b960bcc42ccc7b4c54dc5f32c6a2cf",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "EmptyBorder",
+        "SplitBorderChars"
+      ],
+      "totalLines": 20,
+      "hasStructuralAnalysis": true
+    },
+    "packages/cli/src/components/command-menu/commands.tsx": {
+      "filePath": "packages/cli/src/components/command-menu/commands.tsx",
+      "contentHash": "a0c920686ace235385f2d906db54f38985e4ec91bdbf5ecf30b1bf82a2af141b",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./types",
+          "specifiers": [
+            "Command"
+          ]
+        }
+      ],
+      "exports": [
+        "COMMANDS"
+      ],
+      "totalLines": 57,
+      "hasStructuralAnalysis": true
+    },
+    "packages/cli/src/components/command-menu/filter-commands.tsx": {
+      "filePath": "packages/cli/src/components/command-menu/filter-commands.tsx",
+      "contentHash": "f7c91558f6ab089f2c8c232b778d49f6416747a82ca7f3370d10b989aa44f3b9",
+      "functions": [
+        {
+          "name": "getFilteredCommands",
+          "params": [
+            "query"
+          ],
+          "returnType": "Command[]",
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./types",
+          "specifiers": [
+            "Command"
+          ]
+        },
+        {
+          "source": "./commands",
+          "specifiers": [
+            "COMMANDS"
+          ]
+        }
+      ],
+      "exports": [
+        "getFilteredCommands"
+      ],
+      "totalLines": 10,
+      "hasStructuralAnalysis": true
+    },
+    "packages/cli/src/components/command-menu/index.tsx": {
+      "filePath": "packages/cli/src/components/command-menu/index.tsx",
+      "contentHash": "9e111d899c4c78d08821c76c410e8e091b62b4abe4000d1f1971a963ed19b00f",
+      "functions": [
+        {
+          "name": "CommandMenu",
+          "params": [
+            "{ \n    query, \n    selectedIndex, \n    scrollRef, \n    onSelect, \n    onExecute \n}"
+          ],
+          "exported": true,
+          "lineCount": 65
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "RefObject"
+          ]
+        },
+        {
+          "source": "@opentui/core",
+          "specifiers": [
+            "TextAttributes",
+            "ScrollBoxRenderable"
+          ]
+        },
+        {
+          "source": "./filter-commands",
+          "specifiers": [
+            "getFilteredCommands"
+          ]
+        },
+        {
+          "source": "./commands",
+          "specifiers": [
+            "COMMANDS"
+          ]
+        }
+      ],
+      "exports": [
+        "CommandMenu"
+      ],
+      "totalLines": 83,
+      "hasStructuralAnalysis": true
+    },
+    "packages/cli/src/components/command-menu/types.ts": {
+      "filePath": "packages/cli/src/components/command-menu/types.ts",
+      "contentHash": "58d56573ddf07233d8d5c11a91bb7b72628d8d6f1742faa00f451d88e1459f93",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 10,
+      "hasStructuralAnalysis": true
+    },
+    "packages/cli/src/components/command-menu/use-command-menu.ts": {
+      "filePath": "packages/cli/src/components/command-menu/use-command-menu.ts",
+      "contentHash": "f4309ac97e926a6b2dccc500aa6849ba58aecbe6233dfa303cde01144d1e5556",
+      "functions": [
+        {
+          "name": "useCommandMenu",
+          "params": [],
+          "returnType": "UseCommandMenuReturn",
+          "exported": true,
+          "lineCount": 81
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "useRef",
+            "useState",
+            "useMemo",
+            "RefObject"
+          ]
+        },
+        {
+          "source": "@opentui/core",
+          "specifiers": [
+            "ScrollBoxRenderable"
+          ]
+        },
+        {
+          "source": "@opentui/react",
+          "specifiers": [
+            "useKeyboard"
+          ]
+        },
+        {
+          "source": "./filter-commands",
+          "specifiers": [
+            "getFilteredCommands"
+          ]
+        },
+        {
+          "source": "./types",
+          "specifiers": [
+            "Command"
+          ]
+        }
+      ],
+      "exports": [
+        "useCommandMenu"
+      ],
+      "totalLines": 98,
+      "hasStructuralAnalysis": true
+    },
+    "packages/cli/src/components/header.tsx": {
+      "filePath": "packages/cli/src/components/header.tsx",
+      "contentHash": "501c7c457fe64463524ad5b1ed434b1237c6bc8369f7d32fc5b644d25bafb1a4",
+      "functions": [
+        {
+          "name": "Header",
+          "params": [],
+          "exported": true,
+          "lineCount": 10
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "Header"
+      ],
+      "totalLines": 10,
+      "hasStructuralAnalysis": true
+    },
+    "packages/cli/src/components/input-bar.tsx": {
+      "filePath": "packages/cli/src/components/input-bar.tsx",
+      "contentHash": "74c8766f8aeb8d4be045888ca3815e93b77964b4b48e99a8badb24d7b2e11587",
+      "functions": [
+        {
+          "name": "InputBar",
+          "params": [
+            "{ onSubmit, disabled = false }"
+          ],
+          "exported": true,
+          "lineCount": 128
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "useRef",
+            "useCallback",
+            "useEffect"
+          ]
+        },
+        {
+          "source": "@opentui/core",
+          "specifiers": [
+            "TextareaRenderable"
+          ]
+        },
+        {
+          "source": "@opentui/core",
+          "specifiers": [
+            "KeyBinding"
+          ]
+        },
+        {
+          "source": "@opentui/react",
+          "specifiers": [
+            "useRenderer"
+          ]
+        },
+        {
+          "source": "./status-bar",
+          "specifiers": [
+            "StatusBar"
+          ]
+        },
+        {
+          "source": "./border",
+          "specifiers": [
+            "EmptyBorder"
+          ]
+        },
+        {
+          "source": "./command-menu",
+          "specifiers": [
+            "CommandMenu"
+          ]
+        },
+        {
+          "source": "./command-menu/types",
+          "specifiers": [
+            "Command"
+          ]
+        },
+        {
+          "source": "./command-menu/use-command-menu",
+          "specifiers": [
+            "useCommandMenu"
+          ]
+        }
+      ],
+      "exports": [
+        "TEXTAREA_KEY_BINDINGS",
+        "InputBar"
+      ],
+      "totalLines": 163,
+      "hasStructuralAnalysis": true
+    },
+    "packages/cli/src/components/status-bar.tsx": {
+      "filePath": "packages/cli/src/components/status-bar.tsx",
+      "contentHash": "cdcf36e05b3ee8001bb4f152d92d5c7a78cb2100ebd05336a3dfbb7974781a37",
+      "functions": [
+        {
+          "name": "StatusBar",
+          "params": [],
+          "exported": true,
+          "lineCount": 35
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@opentui/core",
+          "specifiers": [
+            "TextAttributes"
+          ]
+        },
+        {
+          "source": "../terminal-capabilities",
+          "specifiers": [
+            "getNewlineHint"
+          ]
+        }
+      ],
+      "exports": [
+        "StatusBar"
+      ],
+      "totalLines": 38,
+      "hasStructuralAnalysis": true
+    },
+    "packages/cli/src/index.tsx": {
+      "filePath": "packages/cli/src/index.tsx",
+      "contentHash": "bdd72200b1d8f7c0e8fe574451d3bd99e5e9fbd6f7c531cfeef1ab840c701d31",
+      "functions": [
+        {
+          "name": "App",
+          "params": [],
+          "exported": false,
+          "lineCount": 18
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@opentui/core",
+          "specifiers": [
+            "createCliRenderer"
+          ]
+        },
+        {
+          "source": "@opentui/react",
+          "specifiers": [
+            "createRoot"
+          ]
+        },
+        {
+          "source": "./components/header",
+          "specifiers": [
+            "Header"
+          ]
+        },
+        {
+          "source": "./components/input-bar",
+          "specifiers": [
+            "InputBar"
+          ]
+        },
+        {
+          "source": "./terminal-setup",
+          "specifiers": [
+            "runTerminalSetupFromArgv"
+          ]
+        },
+        {
+          "source": "./terminal-keyboard",
+          "specifiers": [
+            "disableTerminalKeyboardProtocols",
+            "enableTerminalKeyboardProtocols",
+            "KITTY_KEYBOARD_OPTIONS"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 43,
+      "hasStructuralAnalysis": true
+    },
+    "packages/cli/src/terminal-capabilities.ts": {
+      "filePath": "packages/cli/src/terminal-capabilities.ts",
+      "contentHash": "f91e61deb70d4d18235853daf76ca0f32d3839f4182ccf1510b2dd9251efe1e5",
+      "functions": [
+        {
+          "name": "terminalSupportsShiftEnter",
+          "params": [],
+          "returnType": "boolean",
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "isAppleTerminal",
+          "params": [],
+          "returnType": "boolean",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "getNewlineHint",
+          "params": [],
+          "returnType": "NewlineHint",
+          "exported": true,
+          "lineCount": 11
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "terminalSupportsShiftEnter",
+        "isAppleTerminal",
+        "getNewlineHint"
+      ],
+      "totalLines": 33,
+      "hasStructuralAnalysis": true
+    },
+    "packages/cli/src/terminal-keyboard.ts": {
+      "filePath": "packages/cli/src/terminal-keyboard.ts",
+      "contentHash": "929b4b4daf4bfc5c3436f5a5fb85a5c0b01b846bc0cc757703a6c98783912543",
+      "functions": [
+        {
+          "name": "enableTerminalKeyboardProtocols",
+          "params": [
+            "renderer"
+          ],
+          "returnType": "void",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "disableTerminalKeyboardProtocols",
+          "params": [],
+          "returnType": "void",
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@opentui/core",
+          "specifiers": [
+            "buildKittyKeyboardFlags",
+            "CliRenderer",
+            "KittyKeyboardOptions"
+          ]
+        }
+      ],
+      "exports": [
+        "KITTY_KEYBOARD_OPTIONS",
+        "enableTerminalKeyboardProtocols",
+        "disableTerminalKeyboardProtocols"
+      ],
+      "totalLines": 26,
+      "hasStructuralAnalysis": true
+    },
+    "packages/cli/src/terminal-setup.ts": {
+      "filePath": "packages/cli/src/terminal-setup.ts",
+      "contentHash": "a330704439fb15f90bfba350eea11bee54066945fa360a8aa197a5549df69aea",
+      "functions": [
+        {
+          "name": "setupAppleTerminal",
+          "params": [],
+          "returnType": "{ ok: boolean; message: string }",
+          "exported": true,
+          "lineCount": 31
+        },
+        {
+          "name": "runTerminalSetupFromArgv",
+          "params": [
+            "argv"
+          ],
+          "returnType": "boolean",
+          "exported": true,
+          "lineCount": 12
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "execSync"
+          ]
+        }
+      ],
+      "exports": [
+        "setupAppleTerminal",
+        "runTerminalSetupFromArgv"
+      ],
+      "totalLines": 50,
+      "hasStructuralAnalysis": true
+    },
+    "packages/cli/tsconfig.json": {
+      "filePath": "packages/cli/tsconfig.json",
+      "contentHash": "b46306f14ccaea72d1e8cf80c76ca8a8819984d4bb3722bb678d50ab429b431b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 7,
+      "hasStructuralAnalysis": true
+    },
+    "README.md": {
+      "filePath": "README.md",
+      "contentHash": "3eb5747d689e85bdcf54df9f14a4f55bca6895c767ba689c5a3ef7a13a1013f7",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 2,
+      "hasStructuralAnalysis": true
+    },
+    "tsconfig.base.json": {
+      "filePath": "tsconfig.base.json",
+      "contentHash": "061cfc746a43bef1c87f37c1fc603120db9ee49ed8a8f610e2fc012fdf1160da",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 29,
+      "hasStructuralAnalysis": true
+    }
+  }
+}
