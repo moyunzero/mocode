@@ -10,10 +10,10 @@ const createSessionSchema = z.object({
     title: z.string(),
     cwd: z.string().optional(),
     initialMessage: z.object({
-        role:z.enum(Role),
-        content:z.string(),
-        mode:z.enum(Mode),
-        model:z.string().refine((id)=>!!findSupportedChatModel(id),"Invalid model").optional(),
+        role: z.enum(Role),
+        content: z.string(),
+        mode: z.enum(Mode),
+        model: z.string().refine((id) => !!findSupportedChatModel(id), "Invalid model"),
     }),
 });
 
@@ -65,14 +65,12 @@ const app = new Hono()
                 ...data,
                 // Auth is not wired yet; all sessions belong to a placeholder user.
                 userId: "mock-user",
-                ...(initialMessage && {
-                    messages: {
-                        create: {
-                            ...initialMessage,
-                            status: MessageStatus.COMPLETE,
-                        },
+                messages: {
+                    create: {
+                        ...initialMessage,
+                        status: MessageStatus.COMPLETE,
                     },
-                }),
+                },
             },
             include: {
                 messages: true,

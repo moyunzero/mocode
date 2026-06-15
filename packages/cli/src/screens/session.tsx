@@ -16,23 +16,21 @@ type SessionData = InferResponseType<(typeof apiClient.sessions)[":id"]["$get"],
 
 /** Optional session payload from navigation state after session creation. */
 const sessionLocationSchema = z.object({
-    session:z.custom<SessionData>((value)=> value != null&& typeof value === "object" && "id" in value )
-})
+    session: z.custom<SessionData>((value) => value != null && typeof value === "object" && "id" in value),
+});
 
-function ChatMessage(
-    { msg }: {
-        msg: SessionData["messages"][number];
-    }
-){
-
-    if(msg.role === "USER"){
+function ChatMessage({ msg }: { msg: SessionData["messages"][number] }) {
+    if (msg.role === "USER") {
         return <UserMessage message={msg.content} />;
     }
-    if(msg.role === "ERROR"){
+    if (msg.role === "ERROR") {
         return <ErrorMessage message={msg.content} />;
     }
-    
-    return <BotMessage content={msg.content} model={msg.model} />;
+    if (msg.role === "ASSISTANT") {
+        return <BotMessage content={msg.content} model={msg.model} />;
+    }
+
+    return <ErrorMessage message={`Unknown message role: ${msg.role}`} />;
 }
 
 export function Session(){
