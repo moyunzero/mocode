@@ -83,14 +83,16 @@ function Toast({ currentToast }: ToastProps) {
         info:colors.info,
     };
     const borderColor = currentToast.variant ? variantColors[currentToast.variant] : variantColors.info;
+    const toastWidth = Math.max(1, Math.min(60, width - 6));
+    const left = Math.max(0, Math.floor((width - toastWidth) / 2));
 
     return(
         <box
             position="absolute"
             justifyContent="center"
             top={2}
-            right={2}
-            width={Math.max(1,Math.min(60,width - 6))}
+            left={left}
+            width={toastWidth}
             paddingX={2}
             paddingY={1}
             backgroundColor={colors.surface}

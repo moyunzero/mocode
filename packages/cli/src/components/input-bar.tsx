@@ -79,7 +79,7 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
         // Commands without an action become editable text (e.g. "/models ").
         textarea.insertText(command.value + " ");
     }
-  },[renderer,toast])
+  },[renderer, toast, dialog])
 
   const handleCommandExecute = useCallback((index:number)=>{
     const command = resolveCommand(index);
@@ -90,7 +90,7 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
     const textarea = textareaRef.current;
     if(!textarea) return;
     handleContentChange(textarea.plainText);
-  },[])
+  },[handleContentChange])
 
 
   const handleSubmit = useCallback(()=>{
