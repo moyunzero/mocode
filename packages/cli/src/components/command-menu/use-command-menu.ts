@@ -1,8 +1,13 @@
-import { useMemo, useRef, useState, type RefObject } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { ScrollBoxRenderable } from "@opentui/core";
 import { useKeyboard } from "@opentui/react";
 import { getFilteredCommands } from "./filter-commands";
 import type { Command } from "./types";
+import { useKeyboardLayer } from "../../providers/keyboard-layer";
+import { scrollIndexIntoView, visibleItemCount } from "../../utils/list-scroll-nav";
+
+/** Max rows shown before the list scrolls. */
+const MAX_VISIBLE_ITEMS = 8;
 
 type UseCommandMenuReturn = {
     showCommandMenu: boolean;
@@ -20,10 +25,26 @@ export function useCommandMenu():UseCommandMenuReturn {
     const [selectedIndex,setSelectedIndex] = useState(0);
     const [showCommandMenu,setShowCommandMenu] = useState(false);
 
+    const { push, pop, isTopLayer, setResponder } = useKeyboardLayer();
+
+    // Closing the menu also releases the "command" keyboard layer.
+    const close = ()=>{
+        setShowCommandMenu(false);
+        pop("command");
+    }
+
     // Text after "/" used for prefix filtering; empty string shows all commands.
     const commandQuery = showCommandMenu && textValue.startsWith("/") ? textValue.slice(1) : "";
 
     const filteredCommands = useMemo(()=>getFilteredCommands(commandQuery),[commandQuery]);
+    const pageSize = visibleItemCount(filteredCommands.length, MAX_VISIBLE_ITEMS);
+
+    useLayoutEffect(() => {
+        if (!showCommandMenu) return;
+        const scrollbox = scrollRef.current;
+        if (!scrollbox || filteredCommands.length === 0) return;
+        scrollIndexIntoView(scrollbox, selectedIndex, pageSize);
+    }, [showCommandMenu, selectedIndex, filteredCommands.length, pageSize]);
 
     const handleContentChange = (text:string) => {
         setTextValue(text);
@@ -39,51 +60,41 @@ export function useCommandMenu():UseCommandMenuReturn {
         // Keep menu open only while typing a single token: "/new", not "/new arg".
         if(prefix !== null && !prefix.includes(" ")){
             setShowCommandMenu(true);
+            // Ctrl+C while the menu is open clears input instead of exiting.
+            push("command",()=>{
+                close();
+                return true;
+            })
         }else{
-            setShowCommandMenu(false);
+            close();
         }
     };
 
     const resolveCommand = (index:number):Command | undefined => {
         const command = filteredCommands[index];
         if(command){
-            setShowCommandMenu(false);
+           close();
         }
         return command;
     }
 
     // Arrow keys and Escape are handled here; Enter is handled by InputBar onSubmit.
+    // Ignore keys when a dialog sits above the command menu on the layer stack.
     useKeyboard((key)=>{
-        if(!showCommandMenu) return;
+        if(!showCommandMenu || !isTopLayer("command")) return;
         if(key.name === "escape") {
             key.preventDefault();
-            setShowCommandMenu(false);
+            close();
         }else if(key.name === "up") {
             key.preventDefault();
-            setSelectedIndex((i:number)=>{
-                const newIndex = Math.max(0,i-1);
-                const scrollbox = scrollRef.current;
-                if(scrollbox && newIndex < scrollbox.scrollTop) {
-                    scrollbox.scrollTo(newIndex);
-                }
-                return newIndex;
-            });
+            setSelectedIndex((i:number)=>Math.max(0,i-1));
         }else if (key.name === "down") {
             key.preventDefault();
             setSelectedIndex((i:number)=>{
                 if(filteredCommands.length === 0){
                     return 0
                 }
-                const newIndex = Math.min(filteredCommands.length-1,i+1);
-                const scrollbox = scrollRef.current;
-                if(scrollbox){
-                    const viewportHeight = scrollbox.viewport.height;
-                    const visibleEnd = scrollbox.scrollTop + viewportHeight -1;
-                    if(newIndex > visibleEnd){
-                        scrollbox.scrollTo(newIndex-viewportHeight+1);
-                    }
-                }
-                return newIndex;
+                return Math.min(filteredCommands.length-1,i+1);
             });
         }
         
