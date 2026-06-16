@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./enums": "./src/enums.ts"
+    "./enums": "./src/enums.ts",
+    "./client": "./src/client.ts"
   },
   "scripts": {
     "db:generate": "bunx prisma generate"

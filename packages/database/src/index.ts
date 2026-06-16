@@ -1,2 +1,3 @@
-export { db } from "./client.ts";
-export * from "../generated/prisma/client.ts";
+// Types and generated Prisma client symbols only.
+// Import `@mocode/database/client` when you need the runtime `db` singleton.
+export type * from "../generated/prisma/client.ts";

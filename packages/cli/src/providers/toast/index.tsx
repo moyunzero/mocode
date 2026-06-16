@@ -12,6 +12,7 @@ import type { ToastOptions,ToastVariant } from "./type";
 import { DEFAULT_DURATION } from "./type";
 import { SplitBorderChars } from "../../components/border";
 import { useTheme } from  "../../providers/theme";
+import { useMemo } from "react";
 
 
 export type ToastContextValue = {
@@ -57,9 +58,12 @@ export function ToastProvider({ children }: ToastProviderProps) {
     
    },[clearCurrentTimeout]); 
 
-   const value: ToastContextValue = {
-    show,
-   };
+   // Memoize context value so consumers do not re-render when unrelated provider state changes.
+   const value: ToastContextValue = useMemo(()=>{
+    return {
+        show,
+    };
+   },[show]);
    return(
     <ToastContext.Provider value={value}>
         {children}
