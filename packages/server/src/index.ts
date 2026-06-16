@@ -1,16 +1,54 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import sessions from "./routes/sessions";
+import { sentry } from "@sentry/hono/bun";
+import * as Sentry from "@sentry/hono/bun";
 
 const app = new Hono();
+
+// Capture request traces, errors, and structured logs for the Bun server.
+app.use(
+    sentry(app, {
+      dsn: "https://87e73e1037e7b8bb4b5c0dfd951d366c@o4511343317549056.ingest.us.sentry.io/4511573394718720",
+      tracesSampleRate: 1.0,
+      enableLogs: true,
+      // To disable sending user data and HTTP bodies, uncomment the line below. For more info visit:
+      // https://docs.sentry.io/platforms/javascript/guides/hono/configuration/options/#dataCollection
+      // dataCollection: { userInfo: false, httpBodies: [] },
+    }),
+);
+
+// Manual smoke-test route to verify Sentry log, metric, and error ingestion in development.
+// app.get("/debug-sentry", () => {
+//     Sentry.logger.info("User triggered test error", {
+//         action: "test_error_endpoint",
+//     });
+//     Sentry.metrics.count("test_counter", 1);
+//     throw new Error("My first Sentry error!");
+// });
+  
 
 // Normalize API errors to `{ error: string }` so the CLI can parse them consistently.
 app.onError((err, c) => {
     if (err instanceof HTTPException) {
+        // Expected HTTP failures (4xx) are logged at warn to avoid noise in error dashboards.
+        Sentry.logger.warn("Handle HTTP error", {
+            status: err.status,
+            message: err.message || "Request failed",
+            path: c.req.path,
+            method: c.req.method,
+        });
+
         return c.json({ error: err.message || "Request failed" }, err.status);
     };
 
-    console.error("Unhandled error:", err);
+    // Unexpected exceptions become 500 responses and error-level Sentry events.
+    Sentry.logger.error("Unhandled error", {
+        message: err instanceof Error ? err.message : "Internal Server Error",
+        path: c.req.path,
+        method: c.req.method,
+    });
+
     return c.json({ error: "Internal Server Error" }, 500);
 });
 
