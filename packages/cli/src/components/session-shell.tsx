@@ -2,6 +2,7 @@ import { TextAttributes } from "@opentui/core";
 import type { ReactNode } from "react";
 import { InputBar } from "./input-bar";
 import { Spinner } from "./spinner";
+import { usePromptConfig } from "../providers/prompt-config";
 
 /** Session layout: scrollable transcript, input bar, and status footer. */
 type Props = {
@@ -21,6 +22,9 @@ export function SessionShell({
     loading = false ,
     interruptible = false,
 }: Props){
+
+    // Footer spinner reads mode so its color matches the input border accent.
+    const { mode } = usePromptConfig();
     return (
         <box 
             width="100%" 
@@ -61,7 +65,10 @@ export function SessionShell({
                 >
                     {loading ? (
                         <>
-                            <Spinner />
+                            {/* Spinner tint follows agent mode (Build = primary, Plan = planMode). */}
+                            <Spinner 
+                                mode={mode}
+                            />
                             {interruptible ?<text>esc to interrupt</text>:null}
                         </>
                     ):null}
@@ -72,7 +79,7 @@ export function SessionShell({
                     flexShrink={0}
                     marginLeft="auto"
                 >
-                    {/* TODO: Add tab navigation */}
+                    {/* Tab hint mirrors InputBar's toggleMode binding (not yet wired here). */}
                     <text>tab</text>
                     <text attributes={TextAttributes.DIM}>agent</text>
                 </box>
