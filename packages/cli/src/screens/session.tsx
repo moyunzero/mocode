@@ -12,12 +12,14 @@ import {
 import { apiClient } from "../lib/api-client";
 import { getErrorMessage } from "../lib/http-errors";
 import { useToast } from "../providers/toast"; 
-import { DEFAULT_CHAT_MODEL_ID, type SupportedChatModelId } from "@mocode/shared";
+import { type SupportedChatModelId } from "@mocode/shared";
 import { useChat } from "../hooks/use-chat";
-import type { Message,ClientMessagePart } from "../hooks/use-chat";
+import type { Message } from "../hooks/use-chat";
 import { useKeyboard} from "@opentui/react";
 import { MessageStatus } from "@mocode/database/enums";
 import { useKeyboardLayer } from "../providers/keyboard-layer";
+import { usePromptConfig } from "../providers/prompt-config";
+import { hydrateClientParts } from "../lib/hydrate-message-parts";
 
 
 type SessionData = InferResponseType<(typeof apiClient.sessions)[":id"]["$get"], 200>;
@@ -48,16 +50,15 @@ function mapDbMessages(dbMessages:SessionData["messages"]):Message[]{
             }
         }
 
+        const parts = hydrateClientParts(msg.parts, msg.content);
+
         return{
             id: msg.id,
             role: "assistant",
             content: msg.content,
             mode: msg.mode,
             model: msg.model as SupportedChatModelId,
-            parts: [{
-                type: "text",
-                text: msg.content,
-            }],
+            parts,
             ...(msg.duration !=null ? {
                 // DB stores duration in seconds; prettyMs expects milliseconds.
                 duration: prettyMs(msg.duration * 1000)
@@ -70,7 +71,7 @@ function mapDbMessages(dbMessages:SessionData["messages"]):Message[]{
 function ChatMessage({ msg }: { msg: Message }) {
     // Thin role switch; streaming rows are rendered separately in SessionChat.
     if (msg.role === "user") {
-        return <UserMessage message={msg.content} />;
+        return <UserMessage message={msg.content} mode={msg.mode} />;
     }
     if (msg.role === "error") {
         return <ErrorMessage message={msg.content} />;
@@ -95,6 +96,7 @@ function SessionChat(
     const [initialMessages] = useState(()=>mapDbMessages(session.messages));
     const { messages, streaming, submit, abort, interrupt } = useChat(session.id, initialMessages);
     const { isTopLayer } = useKeyboardLayer();
+    const { mode, model } = usePromptConfig();
 
     // Abort in-flight SSE when leaving the screen so we do not leak fetch work.
     useEffect(()=>{
@@ -116,8 +118,8 @@ function SessionChat(
             onSubmit={(text)=>{
                 submit({
                     userText: text,
-                    mode:"BUILD",
-                    model:DEFAULT_CHAT_MODEL_ID,
+                    mode,
+                    model,
                 })
             }}
             loading = {streaming.status === "streaming"}
@@ -142,8 +144,6 @@ function SessionChat(
         </SessionShell>
     )
 }
-
-
 
 export function Session(){
     const { id } = useParams();
