@@ -1,7 +1,7 @@
 import { useRef,useCallback,useEffect } from "react";
 import type { TextareaRenderable } from "@opentui/core";
 import type { KeyBinding } from "@opentui/core";
-import { useRenderer } from "@opentui/react";
+import { useRenderer, useKeyboard } from "@opentui/react";
 import { StatusBar } from "./status-bar";
 import { EmptyBorder } from "./border";
 import { CommandMenu } from "./command-menu";
@@ -11,6 +11,9 @@ import { useToast } from "../providers/toast";
 import { useKeyboardLayer } from "../providers/keyboard-layer";
 import { useDialog } from "../providers/dialog";
 import { useTheme } from "../providers/theme";
+import { useNavigate } from "react-router";
+import { usePromptConfig } from "../providers/prompt-config";
+import { Mode } from "@mocode/database/enums";
 
 
 type Props = {
@@ -38,11 +41,13 @@ export const TEXTAREA_KEY_BINDINGS: KeyBinding[] = [
 ];
 
 export function InputBar({ onSubmit, disabled = false }: Props) {
+  const { mode, toggleMode, setMode, setModel } = usePromptConfig();
   const textareaRef = useRef<TextareaRenderable>(null);
   const onSubmitRef = useRef<()=> void>(()=>{});
   const renderer = useRenderer();
   const toast = useToast();
   const { colors } = useTheme();
+  const navigate = useNavigate();
 
   const { push, pop, isTopLayer, setResponder } = useKeyboardLayer();
   const dialog = useDialog();
@@ -63,6 +68,7 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
     if(!textarea || !command) return;
     textarea.setText("");
     if(command.action){
+        // Wire prompt config mutators into slash commands (/agents, /models, etc.).
         void Promise.resolve(
           command.action({
             exit:()=>{
@@ -70,7 +76,10 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
             },
             toast,
             dialog,
-
+            navigate:navigate,
+            mode,
+            setMode,
+            setModel,
           }),
         ).catch((error)=>{
           console.error("Command execution failed:", error);
@@ -79,7 +88,7 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
         // Commands without an action become editable text (e.g. "/models ").
         textarea.insertText(command.value + " ");
     }
-  },[renderer, toast, dialog])
+  },[renderer, toast, dialog, navigate, mode, setMode, setModel])
 
   const handleCommandExecute = useCallback((index:number)=>{
     const command = resolveCommand(index);
@@ -122,7 +131,17 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
         return;
     }
     handleSubmit();
-  }
+  };
+
+  useKeyboard((key)=>{
+    if(disabled) return;
+    if(!isTopLayer("base")) return;
+    // Tab toggles Build ↔ Plan without leaving the textarea.
+    if(key.name === "tab"){
+      key.preventDefault();
+      toggleMode();
+    }
+  })
 
   // Base layer: Ctrl+C clears non-empty input before falling through to app exit.
   useEffect(()=>{
@@ -145,7 +164,8 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
     <box width="100%" alignItems="center">
       <box
         border={["left"]}
-        borderColor={colors.primary}
+        // Left accent reflects agent mode (shared with StatusBar and Spinner).
+        borderColor={mode === Mode.PLAN ? colors.planMode : colors.primary}
         customBorderChars={{
           ...EmptyBorder,
           vertical: "┃",

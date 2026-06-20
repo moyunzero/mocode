@@ -1,19 +1,25 @@
 import { TextAttributes } from "@opentui/core";
 import { getNewlineHint } from "../terminal-capabilities";
 import { useTheme } from "../providers/theme";
+import { usePromptConfig } from "../providers/prompt-config";
+import { Mode } from "@mocode/database/enums";
 
-/** Footer hints: model label plus submit/newline shortcuts for this terminal. */
+/** Footer hints: agent mode, model label, and submit/newline shortcuts for this terminal. */
 export function StatusBar() {
   const hint = getNewlineHint();
   const { colors } = useTheme();
+  const { mode, model } = usePromptConfig();
 
   return (
     <box flexDirection="row" gap={1} flexWrap="wrap">
-      <text fg={colors.primary}>Build</text>
+      {/* Mode label uses the same accent as the input border and spinner. */}
+      <text fg={mode === Mode.PLAN ? colors.planMode : colors.primary}>
+        {mode === Mode.PLAN ? "Plan" : "Build"}
+        </text>
       <text attributes={TextAttributes.DIM} fg={colors.dimSeparator}>
         {">"}
       </text>
-      <text>opus-4-6</text>
+      <text>{model}</text>
       <text attributes={TextAttributes.DIM} fg={colors.dimSeparator}>
         ·
       </text>
