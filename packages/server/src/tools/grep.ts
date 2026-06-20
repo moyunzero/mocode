@@ -4,10 +4,20 @@
  */
 import { tool } from "ai";
 import { z } from "zod";
-import { resolve,relative } from "path";
+import { resolve, relative } from "path";
 import { readFile } from "node:fs/promises";
+import { resolvePathInCwd } from "./path-sandbox";
 
 const MAX_RESULTS = 50;
+export const MAX_GREP_PATTERN_LENGTH = 500;
+
+export function validateGrepPattern(pattern: string): string | null {
+    if (pattern.length === 0) return "Pattern must not be empty";
+    if (pattern.length > MAX_GREP_PATTERN_LENGTH) {
+        return `Pattern exceeds maximum length of ${MAX_GREP_PATTERN_LENGTH} characters`;
+    }
+    return null;
+}
 
 export function createGrepTool(cwd:string){
     return tool({
@@ -18,10 +28,16 @@ export function createGrepTool(cwd:string){
             glob: z.string().optional().describe("Optional glob pattern to filter which files to search (e.g. \"**/*.ts\")"),
         }),
         execute: async ({ pattern,path,glob:fileGlob }) => {
-            const resolved = resolve(cwd,path);
-            if(!resolved.startsWith(cwd)) {
-                return {error: "Path is outside of the project directory"};
+            const resolved = resolvePathInCwd(cwd, path);
+            if (!resolved) {
+                return { error: "Path is outside of the project directory" };
             }
+
+            const patternError = validateGrepPattern(pattern);
+            if (patternError) {
+                return { error: patternError };
+            }
+
             try{
                 const regex = new RegExp(pattern);
                 const searchGlob = new Bun.Glob(fileGlob ?? "**/*");

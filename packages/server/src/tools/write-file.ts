@@ -3,10 +3,11 @@
  *
  * Parent directories are created as needed. Prefer editFile for surgical edits.
  */
-import { resolve, relative, dirname } from "path";
+import { relative, dirname } from "path";
 import { writeFile, mkdir } from "fs/promises";
 import { tool } from "ai";
 import { z } from "zod";
+import { resolvePathInCwd } from "./path-sandbox";
 
 export function createWriteFileTool(cwd: string) {
   return tool({
@@ -17,9 +18,8 @@ export function createWriteFileTool(cwd: string) {
       content: z.string().describe("The full content to write to the file"),
     }),
     execute: async ({ path, content }) => {
-      const resolved = resolve(cwd, path);
-
-      if (!resolved.startsWith(cwd)) {
+      const resolved = resolvePathInCwd(cwd, path);
+      if (!resolved) {
         return { error: "Path is outside the project directory" };
       }
 

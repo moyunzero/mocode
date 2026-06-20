@@ -12,13 +12,14 @@ import {
 import { apiClient } from "../lib/api-client";
 import { getErrorMessage } from "../lib/http-errors";
 import { useToast } from "../providers/toast"; 
-import { messagePartsSchema, type SupportedChatModelId } from "@mocode/shared";
+import { type SupportedChatModelId } from "@mocode/shared";
 import { useChat } from "../hooks/use-chat";
-import type { Message,ClientMessagePart } from "../hooks/use-chat";
+import type { Message } from "../hooks/use-chat";
 import { useKeyboard} from "@opentui/react";
 import { MessageStatus } from "@mocode/database/enums";
 import { useKeyboardLayer } from "../providers/keyboard-layer";
 import { usePromptConfig } from "../providers/prompt-config";
+import { hydrateClientParts } from "../lib/hydrate-message-parts";
 
 
 type SessionData = InferResponseType<(typeof apiClient.sessions)[":id"]["$get"], 200>;
@@ -49,11 +50,7 @@ function mapDbMessages(dbMessages:SessionData["messages"]):Message[]{
             }
         }
 
-        // Hydrate Message.parts from JSON; add client-only status for tool-call rows.
-        const parsedParts =msg.parts===null ? null : messagePartsSchema.safeParse(msg.parts);
-        const parts: ClientMessagePart[] = parsedParts?.success ? parsedParts.data.map((p)=>
-            p.type === "tool-call" ? {...p,status:"done" as const} : p
-        ) : [];
+        const parts = hydrateClientParts(msg.parts, msg.content);
 
         return{
             id: msg.id,

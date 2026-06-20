@@ -6,6 +6,7 @@
  */
 import { tool } from "ai";
 import { z } from "zod";
+import { buildBashEnv } from "./bash-env";
 
 const MAX_OUTPUT = 20_000;
 const DEFAULT_TIMEOUT = 30_000;
@@ -23,7 +24,7 @@ export function createBashTool(cwd:string){
                     cwd,
                     stdout: "pipe",
                     stderr: "pipe",
-                    env: { ...process.env,TERM: "dumb"},
+                    env: buildBashEnv(),
                 });
 
                 // Kill the process if it exceeds the model-supplied (or default) timeout.

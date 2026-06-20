@@ -352,6 +352,7 @@ const app = new Hono()
         if(activeResumeSessionIds.has(sessionId)){
             return c.json({ error: "Session is already being resumed" }, 409);
         }
+        activeResumeSessionIds.add(sessionId);
 
         const history = buildConversationHistory(session.messages);
         const abortController = new AbortController();

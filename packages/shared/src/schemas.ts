@@ -10,6 +10,13 @@ import { z } from "zod";
 /** Opaque JSON object passed to tool calls during streaming. */
 export const toolCallArgsSchema = z.record(z.string(), z.json());
 
+const toolCallPartFields = {
+    id: z.string(),
+    name: z.string(),
+    args: toolCallArgsSchema,
+    result: z.string().optional(),
+} as const;
+
 /**
  * Persisted structure for a message's streamed segments (stored in Message.parts).
  *
@@ -23,10 +30,11 @@ export const messagePartSchema = z.discriminatedUnion("type", [
     }),
     z.object({
         type: z.literal("tool-call"),
-        id: z.string(),
-        name: z.string(),
-        args: toolCallArgsSchema,
-        result: z.string().optional(),
+        ...toolCallPartFields,
+    }),
+    z.object({
+        type: z.literal("tool_call"),
+        ...toolCallPartFields,
     }),
     z.object({
         type: z.literal("text"),

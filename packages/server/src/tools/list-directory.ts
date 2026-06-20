@@ -3,10 +3,11 @@
  *
  * Hidden entries and node_modules are filtered out. Directories sort before files.
  */
-import { resolve, relative, join } from "path";
+import { relative, join } from "path";
 import { readdir, stat } from "fs/promises";
 import { tool } from "ai";
 import { z } from "zod";
+import { resolvePathInCwd } from "./path-sandbox";
 
 export function createListDirectoryTool(cwd: string) {
   return tool({
@@ -19,9 +20,8 @@ export function createListDirectoryTool(cwd: string) {
         .default("."),
     }),
     execute: async ({ path }) => {
-      const resolved = resolve(cwd, path);
-
-      if (!resolved.startsWith(cwd)) {
+      const resolved = resolvePathInCwd(cwd, path);
+      if (!resolved) {
         return { error: "Path is outside the project directory" };
       }
 

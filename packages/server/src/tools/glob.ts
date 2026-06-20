@@ -6,7 +6,8 @@
  */
 import { tool } from "ai";
 import { z } from "zod";
-import { resolve,relative } from "path";
+import { resolve, relative } from "path";
+import { resolvePathInCwd } from "./path-sandbox";
 
 const MAX_RESULTS = 200;
 
@@ -18,9 +19,9 @@ export function createGlobTool(cwd:string){
             path: z.string().describe("The path to the file to edit relative to the project directory").default("."),
         }),
         execute: async ({ pattern,path }) => { 
-            const resolved = resolve(cwd,path);
-            if(!resolved.startsWith(cwd)) {
-                return {error: "Path is outside of the project directory"};
+            const resolved = resolvePathInCwd(cwd, path);
+            if (!resolved) {
+                return { error: "Path is outside of the project directory" };
             }
             try{
                const glob = new Bun.Glob(pattern);
