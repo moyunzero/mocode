@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Mode, modeSchema } from "./schemas";
+import { Mode, modeSchema, getToolContracts } from "./schemas";
 import {
   DEFAULT_CHAT_MODEL_ID,
   findSupportedChatModel,
@@ -25,5 +25,31 @@ describe("supportedChatModelIdSchema", () => {
 
   test("rejects unknown ids", () => {
     expect(supportedChatModelIdSchema.safeParse("fake/model").success).toBe(false);
+  });
+});
+
+describe("getToolContracts", () => {
+  test("PLAN exposes read-only tools only", () => {
+    const tools = getToolContracts(Mode.PLAN);
+    expect(Object.keys(tools).sort()).toEqual(
+      ["glob", "grep", "gitDiff", "gitStatus", "listDirectory", "readFile"].sort(),
+    );
+  });
+
+  test("BUILD exposes read-only tools plus write/bash", () => {
+    const tools = getToolContracts(Mode.BUILD);
+    expect(Object.keys(tools).sort()).toEqual(
+      [
+        "bash",
+        "editFile",
+        "glob",
+        "grep",
+        "gitDiff",
+        "gitStatus",
+        "listDirectory",
+        "readFile",
+        "writeFile",
+      ].sort(),
+    );
   });
 });

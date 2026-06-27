@@ -3,7 +3,7 @@
   "module": "src/index.tsx",
   "type": "module",
   "private": true,
-  "bin":{
+  "bin": {
     "mocode": "./bin/mocode"
   },
   "scripts": {
@@ -24,6 +24,7 @@
     "@mocode/shared": "workspace:*",
     "@opentui/core": "^0.4.1",
     "@opentui/react": "^0.4.1",
+    "@vscode/ripgrep": "^1.18.0",
     "ai": "^6.0.208",
     "date-fns": "^4.4.0",
     "hono": "^4.12.25",
@@ -32,6 +33,7 @@
     "pretty-ms": "^9.3.0",
     "react": "^19.2.6",
     "react-router": "^7.17.0",
+    "simple-git": "^3.36.0",
     "zod": "^4.4.3"
   }
 }

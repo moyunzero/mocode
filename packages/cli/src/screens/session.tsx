@@ -29,8 +29,9 @@ import { parseInitialMessages, sessionLocationSchema } from "../lib/session-navi
 type SessionData = InferResponseType<(typeof apiClient.sessions)[":id"]["$get"], 200>;
 
 function ChatMessage(
-  { msg }: {
+  { msg, streaming = false }: {
     msg: Message
+    streaming?: boolean
   }
 ) {
   if (msg.role === "user") {
@@ -48,7 +49,7 @@ function ChatMessage(
       model={msg.metadata?.model ?? "unknown"}
       mode={msg.metadata?.mode ?? "BUILD"}
       durationMs={msg.metadata?.durationMs}
-      streaming={false}
+      streaming={streaming}
     />
   );
 };
@@ -100,8 +101,16 @@ function SessionChat({
       loading={status === "submitted" || status === "streaming"}
       interruptible={status === "submitted" || status === "streaming"}
     >
-      {messages.map((msg) => (
-        <ChatMessage key={msg.id} msg={msg} />
+      {messages.map((msg, index) => (
+        <ChatMessage
+          key={msg.id}
+          msg={msg}
+          streaming={
+            (status === "submitted" || status === "streaming") &&
+            index === messages.length - 1 &&
+            msg.role === "assistant"
+          }
+        />
       ))}
       {error && <ErrorMessage message={error.message} />}
     </SessionShell>

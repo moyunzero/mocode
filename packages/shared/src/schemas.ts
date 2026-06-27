@@ -49,8 +49,21 @@ export const toolInputSchemas = {
   }),
   bash: z.object({
     command: z.string().describe("Shell command to run"),
+    // Optional human-readable intent shown dim in TUI transcript (Phase 01, D-24/D-26).
     description: z.string().optional().describe("Short description of the command"),
     timeout: z.number().optional().describe("Timeout in milliseconds"),
+  }),
+  // Phase 01 (HARNESS-02): no-args read-only git tools, available in PLAN and BUILD.
+  gitStatus: z.object({}),
+  gitDiff: z.object({
+    staged: z.boolean().optional().describe("When true, show staged diff only"),
+    ref: z
+      .string()
+      .refine((value) => !value.startsWith("-") && !/[\0\r\n]/.test(value))
+      .optional()
+      .describe(
+        "Branch or commit SHA to compare working tree against (ignored when staged is true)",
+      ),
   }),
 } as const;
 
@@ -72,6 +85,16 @@ export const readOnlyToolContracts = {
     description:
       "Search file contents with a regular expression under the current project directory.",
     inputSchema: toolInputSchemas.grep,
+  }),
+  // HARNESS-02: structured git read — model should prefer these over bash git *.
+  gitStatus: tool({
+    description: "Get git repository status: branch, clean/dirty, file counts.",
+    inputSchema: toolInputSchemas.gitStatus,
+  }),
+  gitDiff: tool({
+    description:
+      "Get git diff. Default: unstaged changes. Use staged or ref to narrow scope.",
+    inputSchema: toolInputSchemas.gitDiff,
   }),
 } as const;
 

@@ -18,17 +18,27 @@
 import { mkdir, readFile, readdir, stat, writeFile } from "fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "path";
 import { toolInputSchemas, Mode, type ModeType } from "@mocode/shared";
+import { simpleGit } from "simple-git";
+import { runRipgrep } from "./ripgrep";
 
 /** Max chars returned from readFile before truncation metadata is attached. */
 const MAX_FILE_SIZE = 10_000;
 /** Max file paths returned by glob before `truncated: true`. */
 const MAX_RESULTS = 200;
-/** Max grep match rows returned before `truncated: true`. */
-const MAX_MATCHES = 50;
 /** Max stdout/stderr chars returned from bash before truncation. */
 const MAX_OUTPUT = 20_000;
 /** Default bash subprocess timeout in milliseconds. */
 const DEFAULT_TIMEOUT = 30_000;
+
+/** Tools allowed in PLAN mode (read-only). Phase 01 added gitStatus/gitDiff (HARNESS-02). */
+const READ_ONLY_TOOLS = [
+  "readFile",
+  "listDirectory",
+  "glob",
+  "grep",
+  "gitStatus",
+  "gitDiff",
+] as const;
 
 /**
  * Resolve `path` relative to `process.cwd()` and reject escapes outside it.
@@ -62,7 +72,10 @@ function truncate(value: string, limit: number) {
  *   (the server already omits them from `getToolContracts(PLAN)`).
  */
 export async function executeLocalTool(toolName: string, input: unknown, mode: ModeType) {
-  if (mode === Mode.PLAN && !["readFile", "listDirectory", "glob", "grep"].includes(toolName)) {
+  if (
+    mode === Mode.PLAN &&
+    !READ_ONLY_TOOLS.includes(toolName as (typeof READ_ONLY_TOOLS)[number])
+  ) {
     throw new Error(`Tool ${toolName} is not available in PLAN mode`);
   }
 
@@ -113,49 +126,51 @@ export async function executeLocalTool(toolName: string, input: unknown, mode: M
       return { files, ...(truncated ? { truncated: true } : {}) };
     }
     case "grep": {
-      // Delegate to system `grep -rn`; exit code 1 means "no matches", not failure.
+      // Phase 01 (HARNESS-01): delegates to ripgrep instead of naive file scan.
+      // Tool name stays "grep" for model compatibility; implementation is runRipgrep.
       const { pattern, path, include } = toolInputSchemas.grep.parse(input);
       const { cwd, resolved } = resolveInsideCwd(path);
-      const args = [
-        "-rn",
-        "--color=never",
-        "--exclude-dir=node_modules",
-        "--exclude-dir=.git",
-        "-E",
-      ];
-      if (include) args.push(`--include=${include}`);
-      args.push(pattern, resolved);
+      return runRipgrep(cwd, resolved, pattern, include);
+    }
+    case "gitStatus": {
+      // Phase 01 (HARNESS-02): read-only git inspection via simple-git.
+      // Prefer this over `bash git status` — structured output, no shell spawn.
+      const git = simpleGit(process.cwd());
+      if (!(await git.checkIsRepo())) throw new Error("Not a git repository");
 
-      const proc = Bun.spawn(["grep", ...args], { cwd, stdout: "pipe", stderr: "pipe" });
-      const [stdout, stderr] = await Promise.all([
-        new Response(proc.stdout).text(),
-        new Response(proc.stderr).text(),
-      ]);
-      const exitCode = await proc.exited;
+      const status = await git.status();
+      const unstaged =
+        status.modified.length +
+        status.deleted.length +
+        status.renamed.length +
+        status.created.length +
+        status.conflicted.length;
+      return {
+        branch: status.current,
+        tracking: status.tracking ?? null,
+        clean: status.isClean(),
+        staged: status.staged.length,
+        unstaged,
+        untracked: status.not_added.length,
+        summary: status.isClean()
+          ? `On branch ${status.current}: working tree clean`
+          : `On branch ${status.current}: ${status.staged.length} staged, ${unstaged} unstaged, ${status.not_added.length} untracked`,
+      };
+    }
+    case "gitDiff": {
+      // staged takes priority over ref when both are provided (schema contract).
+      // Default (neither set): unstaged working-tree diff.
+      const { staged, ref } = toolInputSchemas.gitDiff.parse(input);
+      const git = simpleGit(process.cwd());
+      if (!(await git.checkIsRepo())) throw new Error("Not a git repository");
 
-      if (exitCode !== 0 && exitCode !== 1) throw new Error(`grep failed: ${stderr.trim()}`);
-      if (!stdout.trim()) return { matches: [], message: "No matches found" };
-
-      const lines = stdout.trim().split("\n");
-      const matches: { file: string; line: number; content: string }[] = [];
-      let truncated = false;
-
-      for (const line of lines) {
-        if (matches.length >= MAX_MATCHES) {
-          truncated = true;
-          break;
-        }
-        const match = line.match(/^(.+?):(\d+):(.*)$/);
-        if (match) {
-          matches.push({
-            file: relative(cwd, match[1]!),
-            line: Number(match[2]),
-            content: match[3]!,
-          });
-        }
-      }
-
-      return { matches, ...(truncated ? { truncated: true, totalMatches: lines.length } : {}) };
+      const diffArgs = staged ? ["--cached"] : ref ? [ref] : [];
+      const diff = await git.diff(diffArgs);
+      const truncated = diff.length > MAX_OUTPUT;
+      return {
+        diff: truncated ? diff.slice(0, MAX_OUTPUT) : diff,
+        ...(truncated ? { truncated: true, totalLength: diff.length } : {}),
+      };
     }
     case "writeFile": {
       const { path, content } = toolInputSchemas.writeFile.parse(input);

@@ -30,4 +30,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # Finder (MacOS) folder config
 .DS_Store
 
+# GSD local planning (not synced to GitHub)
+.planning/
+
 doc/
