@@ -72,7 +72,9 @@ function scheduleReload(cwd: string, onReload: (() => void) | undefined, deps: R
     const callback = debounceOnReload;
     debounceCwd = undefined;
     debounceOnReload = undefined;
-    void reloadMcp(targetCwd, callback, deps.getManager);
+    void reloadMcp(targetCwd, callback, deps.getManager).catch((error) => {
+      console.error("MCP config reload failed:", error);
+    });
   }, DEBOUNCE_MS);
 }
 
@@ -88,12 +90,16 @@ export function watchMcpConfig(cwd: string, onReload?: () => void, deps?: McpWat
     const target = resolveWatchTarget(configPath, resolved.exists);
     const handle = resolved.watch(target, { ignoreInitial: true });
 
-    const onConfigEvent = () => {
+    const onConfigEvent = (changedPath: string) => {
+      if (changedPath !== configPath) {
+        return;
+      }
       scheduleReload(cwd, onReload, resolved);
     };
 
     handle.on("change", onConfigEvent);
     handle.on("add", onConfigEvent);
+    handle.on("unlink", onConfigEvent);
     activeWatchers.push({ handle });
   }
 }

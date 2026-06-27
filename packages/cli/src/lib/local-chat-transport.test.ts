@@ -26,13 +26,15 @@ mock.module("ai", () => ({
 const { LocalChatTransport, stripIncompleteAssistantMessages } = await import("./local-chat-transport");
 
 function createMockManager(): McpManager {
+  const registered = [
+    {
+      serverName: "filesystem",
+      tools: [{ name: "read_file", description: "Read file", inputSchema: {} }],
+    },
+  ];
   return {
-    getDiscoveredTools: () => [
-      {
-        serverName: "filesystem",
-        tools: [{ name: "read_file", description: "Read file", inputSchema: {} }],
-      },
-    ],
+    getDiscoveredTools: () => registered,
+    getRegisteredTools: () => registered,
   } as unknown as McpManager;
 }
 

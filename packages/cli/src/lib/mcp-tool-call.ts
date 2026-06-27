@@ -16,6 +16,7 @@ import { loadMergedMcpConfig } from "../mcp/config";
 import {
   isMcpReadOnlyTool,
   isMcpToolName,
+  looksLikeMcpToolName,
   parseMcpToolName,
   requiresMcpWriteApproval,
 } from "../mcp/heuristics";
@@ -64,7 +65,7 @@ export async function executeMcpToolCall(
   // Some free models emit `Mcp__filesystem__read_file` — normalize to lowercase prefix.
   const toolName = isMcpToolName(rawToolName)
     ? rawToolName
-    : rawToolName.toLowerCase().startsWith("mcp__")
+    : looksLikeMcpToolName(rawToolName)
       ? rawToolName.toLowerCase()
       : rawToolName;
 

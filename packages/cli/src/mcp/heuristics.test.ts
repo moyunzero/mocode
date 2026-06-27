@@ -1,5 +1,21 @@
 import { describe, expect, test } from "bun:test";
-import { isMcpReadOnlyTool, requiresMcpWriteApproval } from "./heuristics";
+import { isMcpReadOnlyTool, isMcpToolName, looksLikeMcpToolName, requiresMcpWriteApproval } from "./heuristics";
+
+describe("isMcpToolName", () => {
+  test("accepts canonical mcp__server__tool names", () => {
+    expect(isMcpToolName("mcp__filesystem__read_file")).toBe(true);
+  });
+
+  test("rejects malformed names", () => {
+    expect(isMcpToolName("mcp__bad")).toBe(false);
+    expect(isMcpToolName("bash")).toBe(false);
+  });
+
+  test("looksLikeMcpToolName accepts mixed-case prefix", () => {
+    expect(looksLikeMcpToolName("Mcp__filesystem__read_file")).toBe(true);
+    expect(looksLikeMcpToolName("mcp__filesystem__read_file")).toBe(true);
+  });
+});
 
 describe("isMcpReadOnlyTool", () => {
   const readOnlyTools = [

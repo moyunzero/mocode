@@ -17,10 +17,19 @@ const mcpServerStdioSchema = z.object({
   tools: z.record(z.string(), mcpToolOverrideSchema).optional(),
 });
 
+const mcpUrlSchema = z.string().refine((value) => {
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}, "Invalid MCP server URL");
+
 const mcpServerHttpSchema = z.object({
   enabled: z.boolean().default(true),
   transport: z.literal("http"),
-  url: z.string().min(1),
+  url: mcpUrlSchema,
   headers: z.record(z.string(), z.string()).optional(),
   timeoutMs: z.number().positive().default(60000),
   tools: z.record(z.string(), mcpToolOverrideSchema).optional(),
@@ -29,7 +38,7 @@ const mcpServerHttpSchema = z.object({
 const mcpServerSseSchema = z.object({
   enabled: z.boolean().default(true),
   transport: z.literal("sse"),
-  url: z.string().min(1),
+  url: mcpUrlSchema,
   headers: z.record(z.string(), z.string()).optional(),
   timeoutMs: z.number().positive().default(60000),
   tools: z.record(z.string(), mcpToolOverrideSchema).optional(),

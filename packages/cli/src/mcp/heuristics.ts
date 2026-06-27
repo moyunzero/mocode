@@ -13,9 +13,23 @@ export type McpToolConfigOverride = {
   readOnly?: boolean;
 };
 
-/** True when the tool name uses Claude Code MCP naming (`mcp__server__tool`). */
+function hasMcpToolShape(name: string, prefix: string): boolean {
+  if (!name.startsWith(prefix)) {
+    return false;
+  }
+  const rest = name.slice(prefix.length);
+  const separator = rest.indexOf("__");
+  return separator > 0 && separator < rest.length - 2;
+}
+
+/** True when the tool name uses canonical MCP naming (`mcp__server__tool`). */
 export function isMcpToolName(name: string): boolean {
-  return name.startsWith(MCP_PREFIX);
+  return hasMcpToolShape(name, MCP_PREFIX);
+}
+
+/** True for canonical or mixed-case MCP tool names (e.g. `Mcp__server__tool`). */
+export function looksLikeMcpToolName(name: string): boolean {
+  return isMcpToolName(name) || hasMcpToolShape(name.toLowerCase(), MCP_PREFIX);
 }
 
 /** Splits `mcp__<server>__<tool>` into server and raw MCP tool segments. */

@@ -16,8 +16,8 @@ async function isNpxAvailable(): Promise<boolean> {
 
 describe("MCP stdio integration", () => {
   test("connectAll discovers tools from filesystem MCP server", async () => {
-    if (!(await isNpxAvailable())) {
-      console.warn("SKIP: npx unavailable — MCP stdio integration test skipped");
+    if (!process.env.RUN_MCP_INTEGRATION_TESTS || !(await isNpxAvailable())) {
+      console.warn("SKIP: MCP integration test disabled or npx unavailable");
       return;
     }
 

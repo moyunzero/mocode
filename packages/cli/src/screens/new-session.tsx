@@ -47,7 +47,11 @@ export function NewSession() {
         const createSession = async () => {
             try{
                 if (isLocalMode()) {
-                    const provider = findSupportedChatModel(state.model)?.provider ?? "anthropic";
+                    const model = findSupportedChatModel(state.model);
+                    if (!model) {
+                        throw new Error(`Unsupported chat model: ${state.model}`);
+                    }
+                    const provider = model.provider;
                     if (!hasRequiredKeys(provider)) {
                         openKeysWizardIfNeeded(dialog, { provider });
                         if (ignore) return;

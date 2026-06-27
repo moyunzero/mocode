@@ -34,7 +34,7 @@ import { requestBashApproval } from "../lib/bash-approval-ui";
 import { executeMcpToolCall } from "../lib/mcp-tool-call";
 import { requestMcpApproval } from "../lib/mcp-approval-ui";
 import { getMcpManager } from "../mcp/manager";
-import { isMcpToolName } from "../mcp/heuristics";
+import { looksLikeMcpToolName } from "../mcp/heuristics";
 import { useDialog } from "../providers/dialog";
 import { isLocalMode } from "../lib/local-mode";
 import { updateLocalSession } from "../lib/local-sessions";
@@ -151,7 +151,7 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
         chat.messages.findLast((message) => message.metadata?.mode)?.metadata?.mode ??
         Mode.BUILD;
 
-      const isMcpCall = isMcpToolName(toolCall.toolName);
+      const isMcpCall = looksLikeMcpToolName(toolCall.toolName);
       // AI SDK marks tools without static execute as `dynamic`. MCP tools are dynamic but must
       // still run on the CLI — only skip unrelated dynamic tools we do not own.
       if (toolCall.dynamic && !isMcpCall) return;
@@ -241,8 +241,14 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
 
     try {
       updateLocalSession(sessionId, chat.messages);
-    } catch {
-      // Session file may not exist yet during initial mount.
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.startsWith("Local session not found:")
+      ) {
+        return;
+      }
+      console.error("Failed to persist local session", { sessionId, error });
     }
   }, [sessionId, chat.messages, chat.status]);
 

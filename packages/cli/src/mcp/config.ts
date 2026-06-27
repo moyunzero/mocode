@@ -38,8 +38,16 @@ function readMcpJsonFile(path: string): Record<string, unknown> {
     const raw = readFileSync(path, "utf-8");
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     return parsed;
-  } catch {
-    return {};
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return {};
+    }
+    throw error;
   }
 }
 

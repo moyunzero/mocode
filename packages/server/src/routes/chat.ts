@@ -66,7 +66,7 @@ type MocodeUIMessage = UIMessage<ChatMessageMetadata, never, InferUITools<ToolCo
 
 /** Wire payload for one MCP tool schema — mirrors CLI SerializedMcpTool (no execute fn). */
 const mcpToolSchema = z.object({
-  name: z.string(),
+  name: z.string().regex(/^mcp__[^_].+__.+$/, "Invalid MCP tool name"),
   description: z.string().optional(),
   inputSchema: z.unknown().optional(),
 });

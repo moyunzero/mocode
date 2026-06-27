@@ -98,7 +98,7 @@ function registerExitHandlers(manager: McpManager): void {
 export class McpManager {
   private readonly servers = new Map<string, ManagedServer>();
   /** Prevents duplicate in-flight `connectServer` for the same name (e.g. rapid `/mcp` toggles). */
-  private readonly connecting = new Set<string>();
+  private readonly connecting = new Map<string, Promise<void>>();
   private cwd = process.cwd();
   private readonly loadConfig: typeof loadMergedMcpConfig;
   private readonly createClient: () => Client;
@@ -313,10 +313,24 @@ export class McpManager {
    * can still expose schemas while status is pending/failed.
    */
   private async connectServer(name: string, config: McpServerEntry): Promise<void> {
-    if (this.connecting.has(name)) {
+    const inFlight = this.connecting.get(name);
+    if (inFlight) {
+      await inFlight;
       return;
     }
-    this.connecting.add(name);
+
+    const promise = this.connectServerOnce(name, config);
+    this.connecting.set(name, promise);
+    try {
+      await promise;
+    } finally {
+      if (this.connecting.get(name) === promise) {
+        this.connecting.delete(name);
+      }
+    }
+  }
+
+  private async connectServerOnce(name: string, config: McpServerEntry): Promise<void> {
     const previous = this.servers.get(name);
     if (previous?.reconnectTimer) {
       this.clearTimer(previous.reconnectTimer);
@@ -330,7 +344,7 @@ export class McpManager {
       config,
       status: McpConnectionStatus.PENDING,
       reconnectAttempts: previous?.reconnectAttempts ?? 0,
-      tools: [],
+      tools: previous?.tools ?? [],
     };
     this.servers.set(name, entry);
 
@@ -346,6 +360,12 @@ export class McpManager {
         await client.close().catch(() => {});
         entry.status = McpConnectionStatus.FAILED;
         entry.error = sanitizeErrorMessage(discoveryError);
+
+        const isRemoteTransport =
+          config.transport === McpTransport.HTTP || config.transport === McpTransport.SSE;
+        if (isRemoteTransport) {
+          this.scheduleReconnect(name);
+        }
         return;
       }
 
@@ -357,7 +377,6 @@ export class McpManager {
     } catch (error) {
       entry.status = McpConnectionStatus.FAILED;
       entry.error = sanitizeErrorMessage(error);
-      entry.tools = [];
 
       const isRemoteTransport =
         config.transport === McpTransport.HTTP || config.transport === McpTransport.SSE;
@@ -365,8 +384,6 @@ export class McpManager {
       if (isRemoteTransport) {
         this.scheduleReconnect(name);
       }
-    } finally {
-      this.connecting.delete(name);
     }
   }
 

@@ -30,6 +30,7 @@ import {
 } from "../mcp/tools";
 import { isMcpToolName } from "../mcp/heuristics";
 import type { ResolvedModel } from "./local-model";
+import { formatChatStreamError } from "./stream-error";
 
 /** Last user-visible text in the outgoing batch — used for MCP routing heuristics. */
 function lastUserText(messages: UIMessage[]): string {
@@ -114,7 +115,7 @@ export class LocalChatTransport<UI_MESSAGE extends UIMessage>
       config,
     );
     const tools = buildMergedToolSet(mode, mcpDynamicTools, config);
-    const mcpToolNames = Object.keys(mcpDynamicTools).filter(isMcpToolName);
+    const mcpToolNames = Object.keys(tools).filter(isMcpToolName);
     const mcpRequested = isMcpUserRequest(lastUserText(messages));
     const systemPrompt = this.opts.buildSystemPrompt({ mode, mcpToolNames, mcpRequested });
     const resolvedModel = this.opts.resolveModel(modelId);
@@ -144,6 +145,7 @@ export class LocalChatTransport<UI_MESSAGE extends UIMessage>
 
     return result.toUIMessageStream<UI_MESSAGE>({
       originalMessages: nextMessages,
+      onError: formatChatStreamError,
       messageMetadata({ part }) {
         if (part.type === "start") {
           return { mode, model: modelId };

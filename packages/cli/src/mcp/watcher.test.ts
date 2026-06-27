@@ -3,7 +3,7 @@ import type { FSWatcher } from "chokidar";
 import type { McpManager } from "./manager";
 import { stopMcpWatcher, watchMcpConfig } from "./watcher";
 
-type ChangeHandler = () => void;
+type ChangeHandler = (path: string) => void;
 
 describe("watchMcpConfig", () => {
   const changeHandlers: ChangeHandler[] = [];
@@ -14,7 +14,7 @@ describe("watchMcpConfig", () => {
 
   const mockWatch = mock((_path: string) => ({
     on: mock((event: string, handler: ChangeHandler) => {
-      if (event === "change") {
+      if (event === "change" || event === "add" || event === "unlink") {
         changeHandlers.push(handler);
       }
     }),
@@ -73,8 +73,8 @@ describe("watchMcpConfig", () => {
   test("debounces rapid changes into one reload after 300ms", async () => {
     watchMcpConfig("/tmp/project", undefined, testDeps);
 
-    changeHandlers[0]?.();
-    changeHandlers[0]?.();
+    changeHandlers[0]?.("/home/user/.mocode/mcp.json");
+    changeHandlers[0]?.("/home/user/.mocode/mcp.json");
 
     expect(mockDisconnectAll).toHaveBeenCalledTimes(0);
     expect(mockConnectAll).toHaveBeenCalledTimes(0);

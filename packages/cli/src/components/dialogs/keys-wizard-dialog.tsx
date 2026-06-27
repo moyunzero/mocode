@@ -11,9 +11,17 @@ import { moveDialogSelection } from "../../lib/dialog-action-nav";
 import { getKeys, saveKeys, type ProviderKeys } from "../../lib/keys";
 import { useKeyboardLayer } from "../../providers/keyboard-layer";
 import { useTheme } from "../../providers/theme";
+import { useToast } from "../../providers/toast";
 import { DialogSearchList } from "../dialog-search-list";
 
-const PROVIDERS = ["anthropic", "openai", "google", "groq", "openrouter"] as const;
+const PROVIDERS = [
+  "anthropic",
+  "openai",
+  "google",
+  "groq",
+  "cerebras",
+  "openrouter",
+] as const;
 
 type ProviderId = (typeof PROVIDERS)[number];
 
@@ -71,6 +79,7 @@ function ActionButton({ label, hint, selected, onSelect, onMouseMove }: ActionBu
 /** Multi-provider API key wizard opened by `/keys` (D-12). */
 export function KeysWizardDialogContent() {
   const { isTopLayer } = useKeyboardLayer();
+  const { show } = useToast();
   const [view, setView] = useState<WizardView>("list");
   const [keys, setKeys] = useState<ProviderKeys>(() => getKeys() ?? {});
   const [editingProvider, setEditingProvider] = useState<ProviderId | null>(null);
@@ -108,10 +117,17 @@ export function KeysWizardDialogContent() {
       nextKeys[editingProvider] = { apiKey: trimmed };
     }
 
-    saveKeys(nextKeys);
-    setKeys(nextKeys);
-    handleBack();
-  }, [keys, editingProvider, draftKey, handleBack]);
+    try {
+      saveKeys(nextKeys);
+      setKeys(nextKeys);
+      handleBack();
+    } catch (error) {
+      show({
+        variant: "error",
+        message: error instanceof Error ? error.message : "Failed to save API key",
+      });
+    }
+  }, [keys, editingProvider, draftKey, handleBack, show]);
 
   const handleContentChange = useCallback(() => {
     setDraftKey(inputRef.current?.value ?? "");

@@ -59,8 +59,11 @@ function readIndex(projectDir: string): SessionsIndex {
     const data = readFileSync(indexPath, "utf-8");
     const parsed = JSON.parse(data) as SessionsIndex;
     return { sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [] };
-  } catch {
-    return { sessions: [] };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return { sessions: [] };
+    }
+    throw error;
   }
 }
 
