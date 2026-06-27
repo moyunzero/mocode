@@ -32,6 +32,17 @@ export function looksLikeMcpToolName(name: string): boolean {
   return isMcpToolName(name) || hasMcpToolShape(name.toLowerCase(), MCP_PREFIX);
 }
 
+/** Normalizes mixed-case MCP prefix to canonical `mcp__` without changing server/tool segments. */
+export function normalizeMcpToolName(name: string): string {
+  if (isMcpToolName(name)) {
+    return name;
+  }
+  if (!looksLikeMcpToolName(name)) {
+    return name;
+  }
+  return MCP_PREFIX + name.slice(MCP_PREFIX.length);
+}
+
 /** Splits `mcp__<server>__<tool>` into server and raw MCP tool segments. */
 export function parseMcpToolName(fullName: string): { server: string; tool: string } {
   if (!isMcpToolName(fullName)) {

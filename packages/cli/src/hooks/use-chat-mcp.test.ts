@@ -107,4 +107,14 @@ describe("executeMcpToolCall", () => {
 
     expect(handled).toBe(false);
   });
+
+  test("mixed-case prefix preserves server segment for callTool", async () => {
+    const { deps, callTool } = createDeps();
+    await executeMcpToolCall(
+      { toolName: "Mcp__MyServer__get_file", toolCallId: "tc7", input: { path: "/tmp" } },
+      deps,
+    );
+
+    expect(callTool).toHaveBeenCalledWith("MyServer", "get_file", { path: "/tmp" });
+  });
 });

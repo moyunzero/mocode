@@ -16,7 +16,7 @@ import { loadMergedMcpConfig } from "../mcp/config";
 import {
   isMcpReadOnlyTool,
   isMcpToolName,
-  looksLikeMcpToolName,
+  normalizeMcpToolName,
   parseMcpToolName,
   requiresMcpWriteApproval,
 } from "../mcp/heuristics";
@@ -62,20 +62,14 @@ export async function executeMcpToolCall(
   deps: ExecuteMcpToolCallDeps,
 ): Promise<boolean> {
   const { toolName: rawToolName, toolCallId, input } = toolCall;
-  // Some free models emit `Mcp__filesystem__read_file` — normalize to lowercase prefix.
-  const toolName = isMcpToolName(rawToolName)
-    ? rawToolName
-    : looksLikeMcpToolName(rawToolName)
-      ? rawToolName.toLowerCase()
-      : rawToolName;
+  // Some free models emit `Mcp__filesystem__read_file` — normalize prefix only.
+  const toolName = normalizeMcpToolName(rawToolName);
 
   if (!isMcpToolName(toolName)) {
     return false;
   }
 
   const { server, tool } = parseMcpToolName(toolName);
-  const config = loadMergedMcpConfig(process.cwd());
-  const toolConfig = config.mcpServers[server]?.tools?.[tool];
 
   const {
     getMcpManager,
@@ -85,6 +79,19 @@ export async function executeMcpToolCall(
     dialog,
     addToolOutput,
   } = deps;
+
+  let toolConfig;
+  try {
+    const config = loadMergedMcpConfig(process.cwd());
+    toolConfig = config.mcpServers[server]?.tools?.[tool];
+  } catch (error) {
+    addToolOutput({
+      toolCallId,
+      state: "output-error",
+      errorText: error instanceof Error ? error.message : String(error),
+    });
+    return true;
+  }
 
   // D-08: PLAN strips write MCP tools from contracts; this is a second guard at execution time.
   if (mode === Mode.PLAN && !isMcpReadOnlyTool(tool, toolConfig)) {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { isMcpReadOnlyTool, isMcpToolName, looksLikeMcpToolName, requiresMcpWriteApproval } from "./heuristics";
+import { isMcpReadOnlyTool, isMcpToolName, looksLikeMcpToolName, normalizeMcpToolName, requiresMcpWriteApproval } from "./heuristics";
 
 describe("isMcpToolName", () => {
   test("accepts canonical mcp__server__tool names", () => {
@@ -14,6 +14,20 @@ describe("isMcpToolName", () => {
   test("looksLikeMcpToolName accepts mixed-case prefix", () => {
     expect(looksLikeMcpToolName("Mcp__filesystem__read_file")).toBe(true);
     expect(looksLikeMcpToolName("mcp__filesystem__read_file")).toBe(true);
+  });
+});
+
+describe("normalizeMcpToolName", () => {
+  test("lowercases prefix only and preserves server casing", () => {
+    expect(normalizeMcpToolName("Mcp__FileSystem__read_file")).toBe(
+      "mcp__FileSystem__read_file",
+    );
+  });
+
+  test("leaves canonical names unchanged", () => {
+    expect(normalizeMcpToolName("mcp__filesystem__read_file")).toBe(
+      "mcp__filesystem__read_file",
+    );
   });
 });
 

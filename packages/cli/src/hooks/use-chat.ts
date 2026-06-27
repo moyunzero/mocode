@@ -34,6 +34,7 @@ import { requestBashApproval } from "../lib/bash-approval-ui";
 import { executeMcpToolCall } from "../lib/mcp-tool-call";
 import { requestMcpApproval } from "../lib/mcp-approval-ui";
 import { getMcpManager } from "../mcp/manager";
+import type { McpManager } from "../mcp/manager";
 import { looksLikeMcpToolName } from "../mcp/heuristics";
 import { useDialog } from "../providers/dialog";
 import { isLocalMode } from "../lib/local-mode";
@@ -126,6 +127,13 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
             ? [previousMessage, message]
             : [message];
 
+        let mcpTools: ReturnType<McpManager["getToolDefinitions"]> = [];
+        try {
+          mcpTools = getMcpManager().getToolDefinitions(requestMode);
+        } catch (error) {
+          console.error("Failed to load MCP tool definitions", error);
+        }
+
         return {
           body: {
             id: sessionId,
@@ -134,7 +142,7 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
             model: message.metadata?.model ?? metadata?.model,
             // Phase 02 D-06: CLI discovers MCP tools locally; server merges schemas into streamText only.
             // Execution remains on CLI — server never calls MCP SDK.
-            mcpTools: getMcpManager().getToolDefinitions(requestMode),
+            mcpTools,
           },
         }
       }
