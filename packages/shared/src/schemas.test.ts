@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Mode, modeSchema } from "./schemas";
+import { Mode, modeSchema, getToolContracts } from "./schemas";
 import {
   DEFAULT_CHAT_MODEL_ID,
   findSupportedChatModel,
@@ -25,5 +25,20 @@ describe("supportedChatModelIdSchema", () => {
 
   test("rejects unknown ids", () => {
     expect(supportedChatModelIdSchema.safeParse("fake/model").success).toBe(false);
+  });
+});
+
+describe("getToolContracts", () => {
+  test("PLAN includes gitStatus and gitDiff", () => {
+    const tools = getToolContracts(Mode.PLAN);
+    expect(Object.keys(tools)).toContain("gitStatus");
+    expect(Object.keys(tools)).toContain("gitDiff");
+  });
+
+  test("BUILD includes git tools plus write/bash", () => {
+    const tools = getToolContracts(Mode.BUILD);
+    expect(Object.keys(tools)).toContain("gitStatus");
+    expect(Object.keys(tools)).toContain("gitDiff");
+    expect(Object.keys(tools)).toContain("bash");
   });
 });

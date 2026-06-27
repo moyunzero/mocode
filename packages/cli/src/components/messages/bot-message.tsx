@@ -42,6 +42,44 @@ function formatToolArgs(tc: ToolPart): string {
   return Object.values(tc.input).map(String).join(" ");
 }
 
+type BashToolDisplay = {
+  command: string;
+  description?: string;
+};
+
+/** TUI reject tool errors are long model hints — show a short label in the transcript. */
+function formatToolErrorForDisplay(toolName: string, errorText: string): string {
+  // BASH_REJECT_ERROR_TEXT from use-chat.ts is ~500 chars of model guidance;
+  // users only need a one-line status in the message stream (Phase 01, plan 04).
+  if (
+    toolName === "bash" &&
+    errorText.startsWith("User rejected this command in the TUI approval dialog")
+  ) {
+    return "— rejected in approval dialog";
+  }
+  return errorText.length > 160 ? `${errorText.slice(0, 160)}…` : errorText;
+}
+
+/**
+ * Bash-specific transcript layout (Phase 01, D-24/D-26).
+ * Primary line: command string. Secondary line (dim): optional description field
+ * from the bash tool input — helps users understand intent when the command alone
+ * is opaque (e.g. long piped one-liners).
+ */
+function formatBashToolDisplay(input: unknown): BashToolDisplay | null {
+  if (input == null || typeof input !== "object") return null;
+
+  const record = input as Record<string, unknown>;
+  if (typeof record.command !== "string") return null;
+
+  const description =
+    typeof record.description === "string" && record.description.trim().length > 0
+      ? record.description.trim()
+      : undefined;
+
+  return { command: record.command, description };
+}
+
 type PartGroup = {
   type: ClientMessagePart["type"];
   parts: ClientMessagePart[];
@@ -76,6 +114,14 @@ export function BotMessage({
   streaming = false,
 }: Props) {
   const { colors } = useTheme();
+  const hasTextPart = parts.some((part) => part.type === "text" && part.text.length > 0);
+  const toolsPending = parts.some(
+    (part) =>
+      isToolPart(part) &&
+      part.state !== "output-available" &&
+      part.state !== "output-error",
+  );
+
   return (
     <box width="100%" alignItems="center">
       {groupConsecutiveParts(parts).map((group, i) => (
@@ -104,6 +150,19 @@ export function BotMessage({
             if (isToolPart(part)) {
               const toolName =
                 part.type === "dynamic-tool" ? part.toolName : part.type.slice("tool-".length);
+              const bashDisplay =
+                toolName === "bash" && "input" in part
+                  ? formatBashToolDisplay(part.input)
+                  : null;
+              const argsText = bashDisplay?.command ?? formatToolArgs(part);
+              const statusSuffix =
+                part.state !== "output-available" && part.state !== "output-error"
+                  ? " …"
+                  : "";
+              const errorSuffix =
+                part.state === "output-error" && part.errorText
+                  ? ` ${formatToolErrorForDisplay(toolName, part.errorText)}`
+                  : "";
 
               return (
                 <box
@@ -118,13 +177,13 @@ export function BotMessage({
                   paddingX={2}
                 >
                   <text attributes={TextAttributes.DIM}>
-                    <em fg={colors.info}>{formatToolName(toolName)}:</em> {formatToolArgs(part)}
-                    {part.state !== "output-available" && part.state !== "output-error" 
-                      ? " …" 
-                      : ""
-                    }
-                    {part.state === "output-error" ? ` ${part.errorText}` : ""}
+                    <em fg={colors.info}>{formatToolName(toolName)}:</em> {argsText}
+                    {statusSuffix}
+                    {errorSuffix}
                   </text>
+                  {bashDisplay?.description && (
+                    <text attributes={TextAttributes.DIM}> {bashDisplay.description}</text>
+                  )}
                 </box>
               );
             }
@@ -141,6 +200,12 @@ export function BotMessage({
           })}
         </box>
       ))}
+
+      {streaming && !hasTextPart && !toolsPending && (
+        <box paddingX={3} width="100%">
+          <text attributes={TextAttributes.DIM}>Generating response…</text>
+        </box>
+      )}
 
       <box paddingX={3} paddingY={1} gap={1} width="100%">
         <box flexDirection="row" gap={2}>

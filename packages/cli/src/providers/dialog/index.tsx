@@ -31,7 +31,11 @@ export function DialogProvider({ children }: DialogProviderProps) {
     const { push, pop } = useKeyboardLayer();
 
     const close = useCallback(()=>{
-        setCurrentDialog(null);
+        setCurrentDialog((prev) => {
+            // onClose runs before state clears — bash approval uses this for Esc → reject.
+            prev?.onClose?.();
+            return null;
+        });
         pop("dialog");
     },[pop]);
 

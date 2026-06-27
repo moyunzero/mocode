@@ -15,6 +15,27 @@ type SystemPromptParams = {
     mode: ModeType;
 }
 
+/**
+ * BUILD mode tool rules 8–11 — bash permission model (Phase 01, HARNESS-03).
+ *
+ * Three-layer enforcement (prompt + CLI gate + tool output-error):
+ * 1. **Prompt (here)** — tells the model how bash permission works.
+ * 2. **CLI blocklist** — `packages/cli/src/lib/bash-approval.ts` matches D-13
+ *    patterns and opens `BashApprovalDialog` before `executeLocalTool("bash")`.
+ * 3. **Reject errorText** — `packages/cli/src/hooks/use-chat.ts` returns a rich
+ *    `output-error` when the user clicks Reject, mirroring Rule 11 constraints.
+ *
+ * Design intent (D-22–D-25): chat is never a permission gate. The TUI dialog is
+ * the sole approval step. After Reject, the model must not offer soft retries
+ * gated on chat confirmation ("after you confirm", option menus, typed yes/no).
+ * To retry, the user sends a new message → bash is invoked → TUI dialog again.
+ */
+const BUILD_BASH_PERMISSION_RULES = `
+  8. Invoke bash directly for shell operations — do not ask the user in chat whether to run a command before calling bash
+  9. Blocklisted/destructive bash commands pause for user approval in the TUI approval dialog (Approve once / Reject / Allow for session) — the TUI is the sole confirmation mechanism; never treat chat messages as permission
+  10. When command intent is not obvious from the command string alone, include the optional description field on bash tool calls
+  11. If bash returns output-error from user rejection, do not retry the same command unless the user explicitly asks again; acknowledge the rejection and suggest alternatives — do not ask the user to confirm via chat (no typed confirmation phrases, no "reply X to continue"); the TUI approval dialog was the sole approval step and chat must never become a secondary permission gate; do not offer to retry the same rejected command contingent on chat confirmation (no "after you confirm", "if you confirm", or "once you confirm" phrasing); do not present chat replies or numbered option menus as the permission gate to retry — if the user wants the same command again, they must explicitly request it in a new message, which will invoke bash and the TUI approval dialog again`;
+
 /** Assembles mode-specific instructions, tool rules, and response format. */
 export function buildSystemPrompt({
     mode
@@ -71,13 +92,16 @@ export function buildSystemPrompt({
   - readFile — Read file contents
   - listDirectory — List directory contents
   - glob — Find files by pattern (e.g. "**/*.ts")
-  - grep — Search code with regex
+  - grep — Search code with regex (ripgrep backend; respects .gitignore)
+  - gitStatus — Repository status (branch, clean/dirty, file counts)
+  - gitDiff — View unstaged changes (use staged or ref params to narrow)
   
   **Tool Rules:**
   1. Be decisive: Use glob + grep first to find relevant files
-  2. Never re-read files already read in this conversation
-  3. Call multiple tools in parallel when possible
-  4. Do not read the entire project — stay focused`);
+  2. Prefer gitStatus/gitDiff over bash for git inspection
+  3. Never re-read files already read in this conversation
+  4. Call multiple tools in parallel when possible
+  5. Do not read the entire project — stay focused`);
     } else {
       parts.push(`
   # Available Tools (BUILD Mode)
@@ -87,6 +111,8 @@ export function buildSystemPrompt({
   - listDirectory — List directory contents
   - glob — Find files by pattern
   - grep — Search code with regex
+  - gitStatus — Repository status (branch, clean/dirty, file counts)
+  - gitDiff — View unstaged changes (use staged or ref params to narrow)
   - bash — Run shell commands (build, test, lint, git, etc.)
   
   **Tool Rules:**
@@ -95,8 +121,9 @@ export function buildSystemPrompt({
   3. Use writeFile only for new files or when rewriting most of a file
   4. Never re-read files already read in this conversation
   5. Batch tool calls when possible
-  6. Use bash sparingly — only when no dedicated tool suffices
-  7. Never run destructive commands (rm -rf, git reset --hard, etc.) without explicit user confirmation`);
+  6. Prefer gitStatus/gitDiff over bash for git inspection
+  7. Use bash sparingly — only when no dedicated tool suffices
+${BUILD_BASH_PERMISSION_RULES}`);
     }
   
     // ── Engineering conventions injected into every turn ──
