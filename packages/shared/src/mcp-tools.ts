@@ -41,7 +41,7 @@ export function deserializeMcpToolsToDynamic(mcpTools?: SerializedMcpTool[]): To
     result[tool.name] = dynamicTool({
       description: tool.description ?? tool.name,
       inputSchema: jsonSchemaToInputSchema(tool.inputSchema),
-    });
+    } as never);
   }
 
   return result;

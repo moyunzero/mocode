@@ -1,5 +1,10 @@
 import type { UIMessage } from "ai";
-import { hasVisibleAssistantContent, type ModeType } from "@mocode/shared";
+import {
+  findSupportedChatModel,
+  hasVisibleAssistantContent,
+  type ModeType,
+  type SupportedChatModelId,
+} from "@mocode/shared";
 import { stripIncompleteAssistantMessages as stripFromTransport } from "./local-chat-transport";
 
 export const INTERRUPTED_TOOL_ERROR_TEXT = "Interrupted by user";
@@ -58,6 +63,7 @@ export function finalizeInterruptedAssistant<UI_MESSAGE extends UIMessage>(
   if (lastIndex === -1) return messages;
 
   const last = messages[lastIndex];
+  if (last === undefined) return messages;
   if (!Array.isArray(last.parts) || last.parts.length === 0) return messages;
 
   const updated = {
@@ -87,7 +93,8 @@ export function detectResumeEligibility(
   if (chatStatus === "streaming" || chatStatus === "submitted") return "none";
   if (messages.length === 0) return "none";
 
-  const last = messages[messages.length - 1];
+  const last = messages.at(-1);
+  if (!last) return "none";
   if (last.role === "user") return "user-only";
   if (last.role === "assistant" && hasVisibleAssistantContent(last)) {
     return "partial-assistant";
@@ -122,22 +129,36 @@ export function shouldSkipInterruptedToolOutput(
 /** Trim transcript for /resume — only the last user message gets new mode/model metadata. */
 export function trimMessagesForRegenerate<UI_MESSAGE extends UIMessage>(
   messages: UI_MESSAGE[],
-  params: { mode: ModeType; model: string },
+  params: { mode: ModeType; model: SupportedChatModelId },
 ): UI_MESSAGE[] | null {
   const lastUser = messages.findLast((message) => message.role === "user");
   if (!lastUser) return null;
 
   const userIndex = messages.findIndex((message) => message.id === lastUser.id);
   const trimmed = messages.slice(0, userIndex + 1);
+  const priorMetadata =
+    lastUser.metadata && typeof lastUser.metadata === "object"
+      ? (lastUser.metadata as Record<string, unknown>)
+      : {};
   trimmed[trimmed.length - 1] = {
     ...lastUser,
     metadata: {
-      ...lastUser.metadata,
+      ...priorMetadata,
       mode: params.mode,
       model: params.model,
     },
   } as UI_MESSAGE;
   return trimmed;
+}
+
+function resolveStoredModel(
+  stored: unknown,
+  fallback: SupportedChatModelId,
+): SupportedChatModelId {
+  if (typeof stored === "string" && findSupportedChatModel(stored) != null) {
+    return stored as SupportedChatModelId;
+  }
+  return fallback;
 }
 
 /** Derive auto-resume params from normalized chat state (not raw initialMessages). */
@@ -147,8 +168,8 @@ export function resolveAutoResumeRequest(params: {
   hasAutoResumed: boolean;
   initialPromptPending: boolean;
   fallbackMode: ModeType;
-  fallbackModel: string;
-}): { mode: ModeType; model: string } | null {
+  fallbackModel: SupportedChatModelId;
+}): { mode: ModeType; model: SupportedChatModelId } | null {
   const normalized = stripIncompleteAssistantMessages(params.messages);
   const eligibility = detectResumeEligibility(normalized, params.status);
   const shouldAuto = shouldAutoResumeOnMount({
@@ -159,8 +180,9 @@ export function resolveAutoResumeRequest(params: {
   if (!shouldAuto) return null;
 
   const lastUser = normalized.findLast((message) => message.role === "user");
+  const lastUserMetadata = lastUser?.metadata as { mode?: ModeType; model?: unknown } | undefined;
   return {
-    mode: (lastUser?.metadata?.mode as ModeType | undefined) ?? params.fallbackMode,
-    model: (lastUser?.metadata?.model as string | undefined) ?? params.fallbackModel,
+    mode: lastUserMetadata?.mode ?? params.fallbackMode,
+    model: resolveStoredModel(lastUserMetadata?.model, params.fallbackModel),
   };
 }

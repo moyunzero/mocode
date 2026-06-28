@@ -19,6 +19,7 @@ import {
   normalizeMcpToolName,
   parseMcpToolName,
   requiresMcpWriteApproval,
+  type McpToolConfigOverride,
 } from "../mcp/heuristics";
 import type { DialogContextValue } from "../providers/dialog";
 import type { McpApprovalVerdict } from "./mcp-approval-ui";
@@ -80,7 +81,7 @@ export async function executeMcpToolCall(
     addToolOutput,
   } = deps;
 
-  let toolConfig;
+  let toolConfig: McpToolConfigOverride | undefined;
   try {
     const config = loadMergedMcpConfig(process.cwd());
     toolConfig = config.mcpServers[server]?.tools?.[tool];

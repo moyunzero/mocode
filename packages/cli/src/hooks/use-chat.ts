@@ -20,6 +20,7 @@ import { useMemo, useCallback, useRef, useEffect, useState } from "react";
 import { useChat as useAiChat } from "@ai-sdk/react";
 import {
   DefaultChatTransport,
+  type ChatTransport,
   type InferUITools,
   lastAssistantMessageIsCompleteWithToolCalls,
   type LanguageModelUsage,
@@ -176,11 +177,11 @@ export function useChat(
   const transport = useMemo(() => {
     // BYOK: inference + tool schema merge run in-process; MCP execution stays in onToolCall below.
     if (isLocalMode()) {
-      return new LocalChatTransport<Message>({
+      return new LocalChatTransport({
         resolveModel: resolveChatModel,
         getMcpManager,
         buildSystemPrompt,
-      });
+      }) as ChatTransport<Message>;
     }
 
     const chatFetch = (async (input, init) => {
@@ -403,7 +404,7 @@ export function useChat(
     if (pending.length === 0) return;
 
     chat.setMessages((msgs) => finalizeInterruptedAssistant(msgs));
-  }, [turnInterrupted, chat.status, chat.messages, chat.setMessages]);
+  }, [turnInterrupted, chat.messages, chat.setMessages]);
 
   const interrupt = useCallback(() => {
     turnInterruptedRef.current = true;
@@ -464,7 +465,7 @@ export function useChat(
         await chat.regenerate({ messageId: lastUser.id });
       }
     },
-    [chat.messages, chat.regenerate, chat.setMessages, chat.status, chat.clearError],
+    [chat],
   );
 
   const resumeStream = useCallback(async () => {
@@ -476,7 +477,7 @@ export function useChat(
     if (pruned.length === chat.messages.length) return;
 
     chat.setMessages(pruned);
-  }, [chat.error, chat.status, chat.messages, chat.setMessages]);
+  }, [chat.messages, chat.setMessages]);
 
   const submit = useCallback(
     (params: { userText: string; mode: ModeType; model: SupportedChatModelId }) => {

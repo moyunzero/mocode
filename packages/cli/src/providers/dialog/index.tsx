@@ -54,7 +54,7 @@ export function DialogProvider({ children }: DialogProviderProps) {
             close();
             return true;
         });
-    },[close,pop]);
+    },[close, pop, push]);
 
     const value: DialogContextValue = useMemo(
         () => ({

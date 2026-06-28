@@ -21,7 +21,7 @@ import {
   type UIMessage,
   type UIMessageChunk,
 } from "ai";
-import { Mode, type ModeType } from "@mocode/shared";
+import { Mode, type ModeType, type SupportedChatModelId } from "@mocode/shared";
 import { loadMergedMcpConfig } from "../mcp/config";
 import type { McpManager } from "../mcp/manager";
 import {
@@ -32,6 +32,28 @@ import { isMcpToolName } from "../mcp/heuristics";
 import type { ResolvedModel } from "./local-model";
 import { formatChatStreamError } from "./stream-error";
 import { hasVisibleAssistantContent } from "@mocode/shared";
+
+type LocalChatMetadata = {
+  mode?: ModeType;
+  model?: SupportedChatModelId | string;
+  durationMs?: number;
+  usage?: LanguageModelUsage;
+};
+
+function readMetadata(message: UIMessage): LocalChatMetadata | undefined {
+  return message.metadata as LocalChatMetadata | undefined;
+}
+
+function findLastMetadataValue<K extends keyof LocalChatMetadata>(
+  messages: UIMessage[],
+  key: K,
+): LocalChatMetadata[K] | undefined {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const value = readMetadata(messages[i]!)?.[key];
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
 
 /** Last user-visible text in the outgoing batch — used for MCP routing heuristics. */
 function lastUserText(messages: UIMessage[]): string {
@@ -82,7 +104,7 @@ export type LocalChatTransportOptions<UI_MESSAGE extends UIMessage> = {
  * In-process transport for BYOK `--local` sessions.
  * Implements AI SDK `ChatTransport` so `useChat` can share the same hook for SaaS and local.
  */
-export class LocalChatTransport<UI_MESSAGE extends UIMessage>
+export class LocalChatTransport<UI_MESSAGE extends UIMessage = UIMessage>
   implements ChatTransport<UI_MESSAGE>
 {
   private activeStream: {
@@ -103,11 +125,8 @@ export class LocalChatTransport<UI_MESSAGE extends UIMessage>
   }: Parameters<ChatTransport<UI_MESSAGE>["sendMessages"]>[0]): Promise<
     ReadableStream<UIMessageChunk>
   > {
-    const mode =
-      messages.findLast((message) => message.metadata?.mode)?.metadata?.mode ??
-      Mode.BUILD;
-    const modelId = messages.findLast((message) => message.metadata?.model)?.metadata
-      ?.model;
+    const mode = findLastMetadataValue(messages, "mode") ?? Mode.BUILD;
+    const modelId = findLastMetadataValue(messages, "model");
 
     if (!modelId || typeof modelId !== "string") {
       throw new Error("Missing model in message metadata");
@@ -130,7 +149,7 @@ export class LocalChatTransport<UI_MESSAGE extends UIMessage>
     const messagesForValidation = stripIncompleteAssistantMessages(messages);
     const nextMessages = await validateUIMessages<UI_MESSAGE>({
       messages: messagesForValidation,
-      tools,
+      tools: tools as Parameters<typeof validateUIMessages<UI_MESSAGE>>[0]["tools"],
     });
     const modelMessages = await convertToModelMessages(nextMessages, { tools });
 
@@ -154,7 +173,7 @@ export class LocalChatTransport<UI_MESSAGE extends UIMessage>
       onError: formatChatStreamError,
       messageMetadata({ part }) {
         if (part.type === "start") {
-          return { mode, model: modelId };
+          return { mode, model: modelId } as never;
         }
 
         if (part.type !== "finish") return undefined;
@@ -164,7 +183,7 @@ export class LocalChatTransport<UI_MESSAGE extends UIMessage>
           model: modelId,
           durationMs: Date.now() - startTime,
           ...(completedUsage ? { usage: completedUsage } : {}),
-        };
+        } as never;
       },
       async onFinish(event) {
         if (self.activeStream?.stream === stream) self.activeStream = null;

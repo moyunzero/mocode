@@ -145,7 +145,7 @@ export function McpDialogContent() {
 
     const interval = setInterval(() => bump(), 1000);
     return () => clearInterval(interval);
-  }, [servers, busyServers, bump]);
+  }, [servers, bump]);
 
   const handleReconnect = useCallback(
     async (server: McpServerStatus) => {

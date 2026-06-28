@@ -20,7 +20,7 @@ function getInitialTheme(): Theme {
         const savedTheme = THEMES.find((t) => t.name === preferences.themeName);
         return savedTheme ?? DEFAULT_THEME;
 
-    }catch(error){
+    }catch{
         return DEFAULT_THEME;
     }
 }

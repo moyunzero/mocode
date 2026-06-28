@@ -44,6 +44,7 @@ export function finalizeInterruptedAssistant<UI_MESSAGE extends UIMessage>(
   if (lastIndex === -1) return messages;
 
   const last = messages[lastIndex];
+  if (last === undefined) return messages;
   if (!Array.isArray(last.parts) || last.parts.length === 0) return messages;
 
   const updated = {
