@@ -56,6 +56,11 @@ import {
 import { formatChatStreamError } from "../lib/stream-error";
 import { scheduleLocalSessionPersist } from "./use-chat-persist";
 import { killTrackedToolProcesses } from "../lib/tool-process-registry";
+import {
+  requiresLocalWriteApproval,
+  LOCAL_WRITE_REJECT_ERROR_TEXT,
+} from "../lib/local-write-approval";
+import { requestLocalWriteApproval } from "../lib/local-write-approval-ui";
 
 /**
  * Multi-sentence model guidance returned when the user rejects a blocklisted bash command.
@@ -160,6 +165,8 @@ export function useChat(
   const sessionMcpAllowRef = useRef(new Set<string>());
   /** Tool calls Esc'd while local exec is in-flight — skip late addToolOutput + auto-send. */
   const skipToolOutputIdsRef = useRef(new Set<string>());
+  /** Session allowlist for writeFile/editFile after "Allow for this session". */
+  const sessionWriteAllowRef = useRef(new Set<string>());
   /** Blocks sendAutomaticallyWhen after Esc finalizes tool output-error parts. */
   const turnInterruptedRef = useRef(false);
   const [turnInterrupted, setTurnInterrupted] = useState(false);
@@ -321,6 +328,32 @@ export function useChat(
           }
         }
 
+        if (
+          requiresLocalWriteApproval(
+            toolCall.toolName,
+            mode,
+            sessionWriteAllowRef.current,
+          )
+        ) {
+          const verdict = await requestLocalWriteApproval(
+            dialog,
+            toolCall.toolName,
+            toolCall.input,
+          );
+          if (verdict === "reject") {
+            if (shouldSkipToolOutput()) return;
+            chat.addToolOutput({
+              tool: toolCall.toolName as keyof ChatTools,
+              toolCallId: toolCall.toolCallId,
+              state: "output-error",
+              errorText: LOCAL_WRITE_REJECT_ERROR_TEXT,
+            });
+            return;
+          }
+          if (verdict === "allow-session") {
+            sessionWriteAllowRef.current.add(toolCall.toolName);
+          }
+        }
         const output = await executeLocalTool(toolCall.toolName, toolCall.input, mode);
         if (shouldSkipToolOutput()) return;
         chat.addToolOutput({
