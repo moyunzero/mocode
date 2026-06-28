@@ -12,28 +12,31 @@ export class StreamReplayBuffer {
   private subscribers = new Set<Subscriber>();
 
   ingest(stream: ReadableStream<Uint8Array>): void {
+    void this.ingestToCompletion(stream);
+  }
+
+  /** Await until all chunks from `stream` are buffered (for tests). */
+  async ingestToCompletion(stream: ReadableStream<Uint8Array>): Promise<void> {
     const reader = stream.getReader();
-    void (async () => {
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          if (!value || value.byteLength === 0) continue;
-          this.chunks.push(value);
-          for (const sub of this.subscribers) {
-            sub.push(value);
-          }
-        }
-      } catch {
-        // Ingest errors should not block the primary client SSE branch.
-      } finally {
-        this.closed = true;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (!value || value.byteLength === 0) continue;
+        this.chunks.push(value);
         for (const sub of this.subscribers) {
-          sub.close();
+          sub.push(value);
         }
-        this.subscribers.clear();
       }
-    })();
+    } catch {
+      // Ingest errors should not block the primary client SSE branch.
+    } finally {
+      this.closed = true;
+      for (const sub of this.subscribers) {
+        sub.close();
+      }
+      this.subscribers.clear();
+    }
   }
 
   createReplayStream(): ReadableStream<Uint8Array> {

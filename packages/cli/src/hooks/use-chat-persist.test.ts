@@ -31,4 +31,18 @@ describe("scheduleLocalSessionPersist (D-06)", () => {
     });
     expect(persistFn).toHaveBeenCalledTimes(1);
   });
+
+  test("ready persist is idempotent per explicit call (effect deps should not retrigger)", () => {
+    const persistFn = mock(() => {});
+    const params = {
+      status: "ready" as const,
+      sessionId: "s1",
+      messages: [{ id: "m1" }],
+      persistFn,
+      debounceMs: 400,
+    };
+    scheduleLocalSessionPersist(params);
+    scheduleLocalSessionPersist(params);
+    expect(persistFn).toHaveBeenCalledTimes(2);
+  });
 });

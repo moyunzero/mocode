@@ -49,6 +49,8 @@ import {
   finalizeInterruptedAssistant,
   detectResumeEligibility,
   resolveResumeTransport,
+  shouldSkipInterruptedToolOutput,
+  trimMessagesForRegenerate,
   type ResumeEligibility,
 } from "../lib/stream-interrupt";
 import { formatChatStreamError } from "../lib/stream-error";
@@ -161,6 +163,8 @@ export function useChat(
   /** Blocks sendAutomaticallyWhen after Esc finalizes tool output-error parts. */
   const turnInterruptedRef = useRef(false);
   const [turnInterrupted, setTurnInterrupted] = useState(false);
+  const onPersistErrorRef = useRef(options?.onPersistError);
+  onPersistErrorRef.current = options?.onPersistError;
 
   const transport = useMemo(() => {
     // BYOK: inference + tool schema merge run in-process; MCP execution stays in onToolCall below.
@@ -242,7 +246,7 @@ export function useChat(
     transport,
     async onToolCall({ toolCall }) {
       const shouldSkipToolOutput = () =>
-        skipToolOutputIdsRef.current.has(toolCall.toolCallId);
+        shouldSkipInterruptedToolOutput(toolCall.toolCallId, skipToolOutputIdsRef.current);
 
       // Tool-continuation assistant messages may omit metadata — scan backward like transport.
       const mode =
@@ -302,6 +306,7 @@ export function useChat(
           if (requiresApproval(command, sessionAllowRef.current)) {
             const verdict = await requestBashApproval(dialog, command);
             if (verdict === "reject") {
+              if (shouldSkipToolOutput()) return;
               chat.addToolOutput({
                 tool: "bash",
                 toolCallId: toolCall.toolCallId,
@@ -352,11 +357,11 @@ export function useChat(
       debounceMs: 400,
       persistFn: () => {
         void persistSessionMessages(sessionId, chat.messages).catch((error) => {
-          reportPersistError(options?.onPersistError, sessionId, error);
+          reportPersistError(onPersistErrorRef.current, sessionId, error);
         });
       },
     });
-  }, [sessionId, chat.messages, chat.status, options?.onPersistError]);
+  }, [sessionId, chat.messages, chat.status]);
 
   // Re-apply tool Interrupted markers after chat.stop() settles (SDK may overwrite setMessages).
   useEffect(() => {
@@ -385,7 +390,7 @@ export function useChat(
       const live = snapshotChatMessages(chat);
       const finalized = finalizeInterruptedAssistant(live);
       void persistSessionMessages(sessionId, finalized).catch((error) => {
-        reportPersistError(options?.onPersistError, sessionId, error);
+        reportPersistError(onPersistErrorRef.current, sessionId, error);
       });
 
       const pendingAfter = collectPendingToolCallIds(finalized);
@@ -393,7 +398,7 @@ export function useChat(
         chat.setMessages((msgs) => finalizeInterruptedAssistant(msgs));
       }
     });
-  }, [chat, sessionId, options?.onPersistError]);
+  }, [chat, sessionId]);
 
   const getEligibility = useCallback((): ResumeEligibility => {
     return detectResumeEligibility(chat.messages, chat.status);
@@ -413,15 +418,8 @@ export function useChat(
       const lastUser = chat.messages.findLast((message) => message.role === "user");
       if (!lastUser) return;
 
-      const userIndex = chat.messages.findIndex((message) => message.id === lastUser.id);
-      const trimmed = chat.messages.slice(0, userIndex + 1).map((message) => ({
-        ...message,
-        metadata: {
-          ...message.metadata,
-          mode: params.mode,
-          model: params.model,
-        },
-      }));
+      const trimmed = trimMessagesForRegenerate(chat.messages, params);
+      if (!trimmed) return;
       chat.setMessages(trimmed);
 
       await chat.regenerate({ messageId: lastUser.id });

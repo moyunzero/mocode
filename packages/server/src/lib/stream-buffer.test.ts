@@ -24,9 +24,7 @@ describe("StreamReplayBuffer (D-12 SaaS)", () => {
       },
     });
 
-    buffer.ingest(source);
-
-    await new Promise((r) => setTimeout(r, 10));
+    await buffer.ingestToCompletion(source);
 
     const replay = buffer.createReplayStream();
     const text = await readAll(replay);
@@ -49,9 +47,8 @@ describe("StreamReplayBuffer (D-12 SaaS)", () => {
       },
     });
 
-    buffer.ingest(source);
+    void buffer.ingestToCompletion(source);
 
-    await new Promise((r) => setTimeout(r, 5));
     const replay = buffer.createReplayStream();
     const readPromise = readAll(replay);
 

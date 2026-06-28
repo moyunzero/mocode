@@ -41,6 +41,20 @@ describe("formatAssistantFooter (D-09, D-21)", () => {
       streaming: false,
       usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
     });
-    expect(footer).toMatch(/100|150|50/);
+    expect(footer).toContain("100");
+    expect(footer).toContain("50");
+    expect(footer).not.toContain("150");
+  });
+
+  test("suppresses usage token counts while streaming", () => {
+    const footer = formatAssistantFooter({
+      mode: Mode.BUILD,
+      model: "claude-sonnet-4-6",
+      durationMs: 500,
+      streaming: true,
+      usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
+    });
+    expect(footer).not.toContain("↑100");
+    expect(footer).not.toContain("↓50");
   });
 });

@@ -112,6 +112,10 @@ function hasPendingToolCalls(message: MocodeUIMessage) {
 
     return false;
   });
+}
+
+function errorLogMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 };
 
 const app = new Hono<AuthenticatedEnv>()
@@ -165,6 +169,7 @@ const app = new Hono<AuthenticatedEnv>()
       });
       const modelMessages = await convertToModelMessages(nextMessages, { tools });
       let completedUsage: LanguageModelUsage | null = null;
+      const replayBuffer = new StreamReplayBuffer();
 
       const result = streamText({
         model: resolvedModel.model,
@@ -194,16 +199,15 @@ const app = new Hono<AuthenticatedEnv>()
           };
         },
         consumeSseStream: ({ stream }) => {
-          const buffer = new StreamReplayBuffer();
-          registerStreamBuffer(id, userId, buffer);
-          buffer.ingest(stream);
+          registerStreamBuffer(id, userId, replayBuffer);
+          replayBuffer.ingest(stream);
         },
         async onFinish(event) {
           try {
           let messagesToPersist = event.messages;
 
           if (event.isAborted) {
-            clearActiveStream(id);
+            clearActiveStream(id, replayBuffer);
             messagesToPersist = normalizeInterruptedMessages(event.messages);
           }
 
@@ -225,7 +229,7 @@ const app = new Hono<AuthenticatedEnv>()
             },
           });
 
-          clearActiveStream(id);
+          clearActiveStream(id, replayBuffer);
 
           if (!completedUsage) return;
 
@@ -243,25 +247,32 @@ const app = new Hono<AuthenticatedEnv>()
             });
           } catch (error) {
             console.error("Failed to ingest Polar AI usage for chat message", {
-              error,
+              message: errorLogMessage(error),
               sessionId: id,
               messageId: event.responseMessage.id,
               userId,
             });
           }
           } catch (error) {
-            console.error("Failed to persist chat finish", { error, sessionId: id });
+            clearActiveStream(id, replayBuffer);
+            console.error("Failed to persist chat finish", {
+              message: errorLogMessage(error),
+              sessionId: id,
+            });
           }
         },
         onError(error) {
-          clearActiveStream(id);
+          clearActiveStream(id, replayBuffer);
           return error instanceof Error ? error.message : String(error);
         },
       });
       } catch (error) {
         clearActiveStream(id);
         const message = error instanceof Error ? error.message : "Chat request failed";
-        console.error("Chat handler failed before stream", { sessionId: id, error });
+        console.error("Chat handler failed before stream", {
+          sessionId: id,
+          message: errorLogMessage(error),
+        });
         return c.json({ error: message }, 502);
       }
     },

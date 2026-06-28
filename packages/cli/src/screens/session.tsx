@@ -22,8 +22,7 @@ import { useKeyboardLayer } from "../providers/keyboard-layer";
 import { parseInitialMessages, sessionLocationSchema } from "../lib/session-navigation";
 import { initMcpOnSessionMount } from "../mcp/session-mcp";
 import {
-  shouldAutoResumeOnMount,
-  detectResumeEligibility,
+  resolveAutoResumeRequest,
 } from "../lib/stream-interrupt";
 import { resolvePreResponseEsc } from "../lib/composer-restore";
 import { stripIncompleteAssistantMessages } from "../lib/local-chat-transport";
@@ -134,18 +133,23 @@ function SessionChat({
 
   useEffect(() => {
     if (hasAutoResumedRef.current) return;
-    if (initialPrompt && !hasSubmittedInitialPromptRef.current) return;
+    const initialPromptPending = Boolean(
+      initialPrompt && !hasSubmittedInitialPromptRef.current,
+    );
+    if (initialPromptPending) return;
 
-    const eligibility = detectResumeEligibility(initialMessages, "ready");
-    const shouldAuto = shouldAutoResumeOnMount({
-      eligibility,
+    const resumeRequest = resolveAutoResumeRequest({
+      messages,
+      status,
       hasAutoResumed: hasAutoResumedRef.current,
-      initialPromptPending: false,
+      initialPromptPending,
+      fallbackMode: mode,
+      fallbackModel: model,
     });
-    if (!shouldAuto) return;
+    if (!resumeRequest) return;
     hasAutoResumedRef.current = true;
-    void continueGeneration({ mode, model });
-  }, [initialMessages, initialPrompt, continueGeneration, mode, model]);
+    void continueGeneration(resumeRequest);
+  }, [messages, status, initialPrompt, continueGeneration, mode, model]);
 
   // Esc: interrupt streaming, or restore composer before first token (D-03).
   useKeyboard((key) => {

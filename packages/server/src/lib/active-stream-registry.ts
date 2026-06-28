@@ -15,7 +15,13 @@ export function registerStreamBuffer(
   activeStreams.set(sessionId, { userId, buffer });
 }
 
-export function clearActiveStream(sessionId: string): void {
+export function clearActiveStream(
+  sessionId: string,
+  buffer?: StreamReplayBuffer,
+): void {
+  const current = activeStreams.get(sessionId);
+  if (!current) return;
+  if (buffer && current.buffer !== buffer) return;
   activeStreams.delete(sessionId);
 }
 

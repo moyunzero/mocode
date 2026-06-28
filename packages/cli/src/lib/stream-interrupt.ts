@@ -1,5 +1,5 @@
 import type { UIMessage } from "ai";
-import { hasVisibleAssistantContent } from "@mocode/shared";
+import { hasVisibleAssistantContent, type ModeType } from "@mocode/shared";
 import { stripIncompleteAssistantMessages as stripFromTransport } from "./local-chat-transport";
 
 export const INTERRUPTED_TOOL_ERROR_TEXT = "Interrupted by user";
@@ -109,4 +109,58 @@ export function shouldAutoResumeOnMount(params: {
 }): boolean {
   if (params.hasAutoResumed || params.initialPromptPending) return false;
   return params.eligibility === "user-only";
+}
+
+/** Skip late tool output after Esc marked this tool call id. */
+export function shouldSkipInterruptedToolOutput(
+  toolCallId: string,
+  skipIds: ReadonlySet<string>,
+): boolean {
+  return skipIds.has(toolCallId);
+}
+
+/** Trim transcript for /resume — only the last user message gets new mode/model metadata. */
+export function trimMessagesForRegenerate<UI_MESSAGE extends UIMessage>(
+  messages: UI_MESSAGE[],
+  params: { mode: ModeType; model: string },
+): UI_MESSAGE[] | null {
+  const lastUser = messages.findLast((message) => message.role === "user");
+  if (!lastUser) return null;
+
+  const userIndex = messages.findIndex((message) => message.id === lastUser.id);
+  const trimmed = messages.slice(0, userIndex + 1);
+  trimmed[trimmed.length - 1] = {
+    ...lastUser,
+    metadata: {
+      ...lastUser.metadata,
+      mode: params.mode,
+      model: params.model,
+    },
+  } as UI_MESSAGE;
+  return trimmed;
+}
+
+/** Derive auto-resume params from normalized chat state (not raw initialMessages). */
+export function resolveAutoResumeRequest(params: {
+  messages: UIMessage[];
+  status: ChatStatus;
+  hasAutoResumed: boolean;
+  initialPromptPending: boolean;
+  fallbackMode: ModeType;
+  fallbackModel: string;
+}): { mode: ModeType; model: string } | null {
+  const normalized = stripIncompleteAssistantMessages(params.messages);
+  const eligibility = detectResumeEligibility(normalized, params.status);
+  const shouldAuto = shouldAutoResumeOnMount({
+    eligibility,
+    hasAutoResumed: params.hasAutoResumed,
+    initialPromptPending: params.initialPromptPending,
+  });
+  if (!shouldAuto) return null;
+
+  const lastUser = normalized.findLast((message) => message.role === "user");
+  return {
+    mode: (lastUser?.metadata?.mode as ModeType | undefined) ?? params.fallbackMode,
+    model: (lastUser?.metadata?.model as string | undefined) ?? params.fallbackModel,
+  };
 }

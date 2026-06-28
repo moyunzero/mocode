@@ -85,7 +85,10 @@ export type LocalChatTransportOptions<UI_MESSAGE extends UIMessage> = {
 export class LocalChatTransport<UI_MESSAGE extends UIMessage>
   implements ChatTransport<UI_MESSAGE>
 {
-  private activeStream: ReadableStream<UIMessageChunk> | null = null;
+  private activeStream: {
+    chatId: string | undefined;
+    stream: ReadableStream<UIMessageChunk>;
+  } | null = null;
 
   constructor(private readonly opts: LocalChatTransportOptions<UI_MESSAGE>) {}
 
@@ -164,7 +167,7 @@ export class LocalChatTransport<UI_MESSAGE extends UIMessage>
         };
       },
       async onFinish(event) {
-        self.activeStream = null;
+        if (self.activeStream?.stream === stream) self.activeStream = null;
         if (!onFinish) return;
         await onFinish({
           messages: event.messages,
@@ -181,42 +184,46 @@ export class LocalChatTransport<UI_MESSAGE extends UIMessage>
             while (true) {
               const { done, value } = await reader.read();
               if (done) {
-                self.activeStream = null;
+                if (self.activeStream?.stream === stream) self.activeStream = null;
                 controller.close();
                 return;
               }
               controller.enqueue(value);
             }
           } catch (error) {
-            self.activeStream = null;
+            if (self.activeStream?.stream === stream) self.activeStream = null;
             controller.error(error);
           }
         })();
       },
       cancel(reason) {
-        self.activeStream = null;
+        if (self.activeStream?.stream === stream) self.activeStream = null;
         return rawStream.cancel(reason);
       },
     });
 
-    this.activeStream = stream;
+    this.activeStream = { chatId, stream };
 
     abortSignal?.addEventListener(
       "abort",
       () => {
-        this.activeStream = null;
+        if (this.activeStream?.stream === stream) this.activeStream = null;
       },
       { once: true },
     );
 
-    void chatId;
     return stream;
   }
 
   /**
    * Returns the in-process stream while generation is still running (HARNESS-07 BYOK).
    */
-  async reconnectToStream(): Promise<ReadableStream<UIMessageChunk> | null> {
-    return this.activeStream;
+  async reconnectToStream({
+    chatId,
+  }: {
+    chatId: string;
+  }): Promise<ReadableStream<UIMessageChunk> | null> {
+    if (!this.activeStream || this.activeStream.chatId !== chatId) return null;
+    return this.activeStream.stream;
   }
 }

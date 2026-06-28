@@ -38,10 +38,10 @@ export function formatAssistantFooter(params: {
     parts.push(formatDuration(params.durationMs!));
   }
 
-  if (params.usage?.inputTokens != null) {
+  if (!params.streaming && params.usage?.inputTokens != null) {
     parts.push(`↑${params.usage.inputTokens}`);
   }
-  if (params.usage?.outputTokens != null) {
+  if (!params.streaming && params.usage?.outputTokens != null) {
     parts.push(`↓${params.usage.outputTokens}`);
   }
 
