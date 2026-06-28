@@ -115,3 +115,115 @@ describe("LocalChatTransport", () => {
     expect(stripped.map((message) => message.id)).toEqual(["user-1", "user-2"]);
   });
 });
+
+describe("reconnectToStream (D-12 BYOK)", () => {
+  test("returns non-null ReadableStream when sendMessages stream is still active", async () => {
+    let keepOpen = true;
+    streamTextMock.mockImplementationOnce(() => ({
+      toUIMessageStream: () =>
+        new ReadableStream({
+          start(controller) {
+            if (!keepOpen) {
+              controller.close();
+              return;
+            }
+            controller.enqueue(new TextEncoder().encode('data: {"type":"text-delta"}\n\n'));
+          },
+        }),
+    }));
+
+    const transport = new LocalChatTransport({
+      resolveModel: () => createMockResolvedModel(),
+      getMcpManager: createMockManager,
+      buildSystemPrompt: () => "test system prompt",
+    });
+
+    const stream = await transport.sendMessages({
+      trigger: "submit-message",
+      chatId: "session-reconnect",
+      messageId: undefined,
+      messages: [
+        {
+          id: "msg-1",
+          role: "user",
+          parts: [{ type: "text", text: "hello" }],
+          metadata: { mode: Mode.BUILD, model: "claude-sonnet-4-6" },
+        },
+      ],
+      abortSignal: undefined,
+    });
+
+    const reconnected = await transport.reconnectToStream({ chatId: "session-reconnect" });
+    expect(reconnected).not.toBeNull();
+    expect(reconnected).toBeInstanceOf(ReadableStream);
+
+    keepOpen = false;
+  });
+
+  test("returns null after stream completes", async () => {
+    const transport = new LocalChatTransport({
+      resolveModel: () => createMockResolvedModel(),
+      getMcpManager: createMockManager,
+      buildSystemPrompt: () => "test system prompt",
+    });
+
+    const stream = await transport.sendMessages({
+      trigger: "submit-message",
+      chatId: "session-done",
+      messageId: undefined,
+      messages: [
+        {
+          id: "msg-1",
+          role: "user",
+          parts: [{ type: "text", text: "hello" }],
+          metadata: { mode: Mode.BUILD, model: "claude-sonnet-4-6" },
+        },
+      ],
+      abortSignal: undefined,
+    });
+
+    const reader = stream.getReader();
+    while (true) {
+      const { done } = await reader.read();
+      if (done) break;
+    }
+
+    const reconnected = await transport.reconnectToStream({ chatId: "session-done" });
+    expect(reconnected).toBeNull();
+  });
+
+  test("returns null when reconnect chatId does not match active stream", async () => {
+    streamTextMock.mockImplementationOnce(() => ({
+      toUIMessageStream: () =>
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode('data: {"type":"text-delta"}\n\n'));
+          },
+        }),
+    }));
+
+    const transport = new LocalChatTransport({
+      resolveModel: () => createMockResolvedModel(),
+      getMcpManager: createMockManager,
+      buildSystemPrompt: () => "test system prompt",
+    });
+
+    await transport.sendMessages({
+      trigger: "submit-message",
+      chatId: "session-a",
+      messageId: undefined,
+      messages: [
+        {
+          id: "msg-1",
+          role: "user",
+          parts: [{ type: "text", text: "hello" }],
+          metadata: { mode: Mode.BUILD, model: "claude-sonnet-4-6" },
+        },
+      ],
+      abortSignal: undefined,
+    });
+
+    const reconnected = await transport.reconnectToStream({ chatId: "session-b" });
+    expect(reconnected).toBeNull();
+  });
+});

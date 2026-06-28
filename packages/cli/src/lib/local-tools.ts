@@ -20,6 +20,7 @@ import { dirname, isAbsolute, join, relative, resolve } from "path";
 import { toolInputSchemas, Mode, type ModeType } from "@mocode/shared";
 import { simpleGit } from "simple-git";
 import { runRipgrep } from "./ripgrep";
+import { trackToolProcess } from "./tool-process-registry";
 
 /** Max chars returned from readFile before truncation metadata is attached. */
 const MAX_FILE_SIZE = 10_000;
@@ -205,6 +206,7 @@ export async function executeLocalTool(toolName: string, input: unknown, mode: M
         stderr: "pipe",
         env: { ...process.env, TERM: "dumb" },
       });
+      trackToolProcess(proc);
       const timer = setTimeout(() => proc.kill(), timeout);
       const [stdout, stderr] = await Promise.all([
         new Response(proc.stdout).text(),

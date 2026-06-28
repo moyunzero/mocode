@@ -23,3 +23,8 @@ export {
   deserializeMcpToolsToDynamic,
   type SerializedMcpTool,
 } from "./mcp-tools";
+
+export {
+  hasVisibleAssistantContent,
+  type AssistantMessageLike,
+} from "./assistant-content";

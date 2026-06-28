@@ -1,5 +1,5 @@
-import { TextAttributes } from "@opentui/core";
-import type { ReactNode } from "react";
+import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core";
+import type { ReactNode, RefObject } from "react";
 import { InputBar } from "./input-bar";
 import { Spinner } from "./spinner";
 import { usePromptConfig } from "../providers/prompt-config";
@@ -13,6 +13,9 @@ type Props = {
     loading?: boolean;
     /** When true with loading, shows "esc to interrupt" hint. */
     interruptible?: boolean;
+    composerRestoreText?: string | null;
+    composerRestoreToken?: number;
+    transcriptScrollRef?: RefObject<ScrollBoxRenderable | null>;
 }
 
 export function SessionShell({ 
@@ -21,6 +24,9 @@ export function SessionShell({
     inputDisabled = false, 
     loading = false ,
     interruptible = false,
+    composerRestoreText = null,
+    composerRestoreToken = 0,
+    transcriptScrollRef,
 }: Props){
 
     // Footer spinner reads mode so its color matches the input border accent.
@@ -36,18 +42,20 @@ export function SessionShell({
             paddingX={2}
         >
             <scrollbox
+                ref={transcriptScrollRef}
                 flexGrow={1}
                 width="100%"
                 stickyScroll
                 stickyStart="bottom"
+                viewportCulling={false}
             >
-                {/* Keep the latest message in view as the transcript grows. */}
+                {/* viewportCulling off: sticky scroll must measure full transcript height. */}
                 <box>
                     {children}
                 </box>
             </scrollbox>
             <box flexShrink={0}>
-                <InputBar onSubmit={onSubmit} disabled={inputDisabled} />
+                <InputBar onSubmit={onSubmit} disabled={inputDisabled} composerRestoreText={composerRestoreText} composerRestoreToken={composerRestoreToken} />
             </box>
             <box
                 flexShrink={0}

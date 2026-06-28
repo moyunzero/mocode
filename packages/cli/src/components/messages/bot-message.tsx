@@ -6,6 +6,11 @@
  * `output-available` or `output-error`. Execution happens on the CLI; this
  * component only reflects part state from the AI SDK message stream.
  */
+import {
+  shouldShowDurationInFooter,
+  shouldShowGeneratingInFooter,
+} from "../../lib/bot-message-footer";
+import type { LanguageModelUsage } from "ai";
 import prettyMs from "pretty-ms";
 import { EmptyBorder } from "../border";
 import { useTheme } from "../../providers/theme";
@@ -21,6 +26,7 @@ type Props = {
   model: string;
   mode: ModeType;
   durationMs?: number;
+  usage?: LanguageModelUsage;
   streaming?: boolean;
 };
 
@@ -111,6 +117,7 @@ export function BotMessage({
   model,
   mode,
   durationMs,
+  usage,
   streaming = false,
 }: Props) {
   const { colors } = useTheme();
@@ -121,6 +128,12 @@ export function BotMessage({
       part.state !== "output-available" &&
       part.state !== "output-error",
   );
+  const showGenerating = shouldShowGeneratingInFooter({
+    streaming,
+    hasTextPart,
+    toolsPending,
+  });
+  const showDuration = shouldShowDurationInFooter({ streaming, durationMs });
 
   return (
     <box width="100%" alignItems="center">
@@ -201,12 +214,6 @@ export function BotMessage({
         </box>
       ))}
 
-      {streaming && !hasTextPart && !toolsPending && (
-        <box paddingX={3} width="100%">
-          <text attributes={TextAttributes.DIM}>Generating response…</text>
-        </box>
-      )}
-
       <box paddingX={3} paddingY={1} gap={1} width="100%">
         <box flexDirection="row" gap={2}>
           <text fg={mode === Mode.PLAN ? colors.planMode : colors.primary}>◉</text>
@@ -218,14 +225,38 @@ export function BotMessage({
               ›
             </text>
             <text attributes={TextAttributes.DIM}>{model}</text>
-            {(durationMs != null) && (
+            {showGenerating && (
+              <>
+                <text attributes={TextAttributes.DIM} fg={colors.dimSeparator}>
+                  ›
+                </text>
+                <text attributes={TextAttributes.DIM}>Generating response…</text>
+              </>
+            )}
+            {showDuration && (
               <>
                 <text attributes={TextAttributes.DIM} fg={colors.dimSeparator}>
                   ›
                 </text>
                 <text attributes={TextAttributes.DIM}>
-                  {prettyMs(durationMs)}
+                  {prettyMs(durationMs!)}
                 </text>
+              </>
+            )}
+            {!streaming && usage?.inputTokens != null && (
+              <>
+                <text attributes={TextAttributes.DIM} fg={colors.dimSeparator}>
+                  ›
+                </text>
+                <text attributes={TextAttributes.DIM}>↑{usage.inputTokens}</text>
+              </>
+            )}
+            {!streaming && usage?.outputTokens != null && (
+              <>
+                <text attributes={TextAttributes.DIM} fg={colors.dimSeparator}>
+                  ›
+                </text>
+                <text attributes={TextAttributes.DIM}>↓{usage.outputTokens}</text>
               </>
             )}
           </box>

@@ -6,6 +6,8 @@ import { useDialog } from "../../providers/dialog";
 import { useToast } from "../../providers/toast";
 import { apiClient } from "../../lib/api-client";
 import { getErrorMessage } from "../../lib/http-errors";
+import { isLocalMode } from "../../lib/local-mode";
+import { listLocalSessions } from "../../lib/local-sessions";
 import { DialogSearchList } from "../dialog-search-list";
 import type { InferResponseType } from "hono/client";
 
@@ -28,6 +30,14 @@ export const SessionDialogContent = ()=>{
         const fetchSessions = async ()=>{
             if(!ignore) setLoading(true);
             try{
+                if (isLocalMode()) {
+                    const data = listLocalSessions().sort(
+                        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+                    );
+                    if (!ignore) setSessions(data);
+                    return;
+                }
+
                 const response = await apiClient.sessions.$get();
                
                 if(!response.ok) throw new Error(await getErrorMessage(response));

@@ -51,9 +51,20 @@ import {
 import { buildSystemPrompt } from "../system-prompt";
 import type { AuthenticatedEnv } from "../middleware/require-auth";
 import { requireCreditsBalance } from "../middleware/require-credits-balance";
+import {
+  getActiveStreamResponse,
+  clearActiveStream,
+  registerStreamBuffer,
+} from "../lib/active-stream-registry";
+import { StreamReplayBuffer } from "../lib/stream-buffer";
 import { calculateCreditsForUsage } from "../lib/credits";
 import { ingestAiUsage } from "../lib/polar";
 import { isSupportedChatModel, resolveChatModel } from "../lib/model";
+import {
+  normalizeInterruptedMessages,
+  stripIncompleteAssistantMessages,
+} from "../lib/stream-interrupt";
+import { shouldPersistOnFinish } from "../lib/chat-abort";
 
 type ChatMessageMetadata = {
   mode?: ModeType;
@@ -101,6 +112,10 @@ function hasPendingToolCalls(message: MocodeUIMessage) {
 
     return false;
   });
+}
+
+function errorLogMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 };
 
 const app = new Hono<AuthenticatedEnv>()
@@ -112,6 +127,7 @@ const app = new Hono<AuthenticatedEnv>()
       const userId = c.get("userId");
       const { id, messages, mode, model, mcpTools } = c.req.valid("json");
 
+      try {
       const session = await db.session.findUnique({
         where: { id, userId },
       });
@@ -148,11 +164,12 @@ const app = new Hono<AuthenticatedEnv>()
       }
 
       const nextMessages = await validateUIMessages<MocodeUIMessage>({
-        messages: mergedMessages,
+        messages: stripIncompleteAssistantMessages(mergedMessages),
         tools,
       });
       const modelMessages = await convertToModelMessages(nextMessages, { tools });
       let completedUsage: LanguageModelUsage | null = null;
+      const replayBuffer = new StreamReplayBuffer();
 
       const result = streamText({
         model: resolvedModel.model,
@@ -181,18 +198,38 @@ const app = new Hono<AuthenticatedEnv>()
             ...(completedUsage ? { usage: completedUsage } : {}),
           };
         },
+        consumeSseStream: ({ stream }) => {
+          registerStreamBuffer(id, userId, replayBuffer);
+          replayBuffer.ingest(stream);
+        },
         async onFinish(event) {
-          if (event.isAborted) return;
+          try {
+          let messagesToPersist = event.messages;
 
-          // Wait for the CLI to finish all tool calls before persisting/billing.
-          if (hasPendingToolCalls(event.responseMessage)) return;
+          if (event.isAborted) {
+            clearActiveStream(id, replayBuffer);
+            messagesToPersist = normalizeInterruptedMessages(event.messages);
+          }
+
+          if (
+            !shouldPersistOnFinish({
+              isAborted: event.isAborted,
+              messagesToPersist,
+              responseMessage: event.responseMessage,
+              hasPendingToolCalls,
+            })
+          ) {
+            return;
+          }
 
           await db.session.update({
             where: { id, userId },
             data: {
-              messages: event.messages as unknown as Prisma.InputJsonValue,
+              messages: messagesToPersist as unknown as Prisma.InputJsonValue,
             },
           });
+
+          clearActiveStream(id, replayBuffer);
 
           if (!completedUsage) return;
 
@@ -210,18 +247,49 @@ const app = new Hono<AuthenticatedEnv>()
             });
           } catch (error) {
             console.error("Failed to ingest Polar AI usage for chat message", {
-              error,
+              message: errorLogMessage(error),
               sessionId: id,
               messageId: event.responseMessage.id,
               userId,
             });
           }
+          } catch (error) {
+            clearActiveStream(id, replayBuffer);
+            console.error("Failed to persist chat finish", {
+              message: errorLogMessage(error),
+              sessionId: id,
+            });
+          }
         },
         onError(error) {
+          clearActiveStream(id, replayBuffer);
           return error instanceof Error ? error.message : String(error);
         },
       });
+      } catch (error) {
+        clearActiveStream(id);
+        const message = error instanceof Error ? error.message : "Chat request failed";
+        console.error("Chat handler failed before stream", {
+          sessionId: id,
+          message: errorLogMessage(error),
+        });
+        return c.json({ error: message }, 502);
+      }
     },
-  );
+  )
+  .get("/:id/stream", requireCreditsBalance, async (c) => {
+    const userId = c.get("userId");
+    const id = c.req.param("id");
+
+    const session = await db.session.findUnique({
+      where: { id, userId },
+    });
+
+    if (!session) {
+      return c.body(null, 404);
+    }
+
+    return getActiveStreamResponse(id, userId);
+  });
 
 export default app;

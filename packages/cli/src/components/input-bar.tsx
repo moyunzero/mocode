@@ -258,6 +258,9 @@ function FileMentionMenu({
 type Props = {
   onSubmit: (text: string) => void;
   disabled?: boolean;
+  composerRestoreText?: string | null;
+  /** Bumps when composer restore fires so repeated Esc re-applies the same text. */
+  composerRestoreToken?: number;
 };
 
 export const TEXTAREA_KEY_BINDINGS: KeyBinding[] = [
@@ -267,8 +270,13 @@ export const TEXTAREA_KEY_BINDINGS: KeyBinding[] = [
   { name: "enter", shift: true, action: "newline" },
 ];
 
-export function InputBar({ onSubmit, disabled = false }: Props) {
-  const { mode, toggleMode, setMode, setModel } = usePromptConfig();
+export function InputBar({
+  onSubmit,
+  disabled = false,
+  composerRestoreText,
+  composerRestoreToken = 0,
+}: Props) {
+  const { mode, model, toggleMode, setMode, setModel } = usePromptConfig();
   const textareaRef = useRef<TextareaRenderable>(null);
   const onSubmitRef = useRef<() => void>(() => {});
   const activeMentionRef = useRef<MentionMatch | null>(null);
@@ -397,6 +405,7 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
           dialog,
           navigate,
           mode,
+          model,
           setMode,
           setModel,
         },
@@ -405,7 +414,7 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
     } else {
       textarea.insertText(command.value + " ");
     }
-  }, [renderer, toast, dialog, navigate, mode, setMode, setModel]);
+  }, [renderer, toast, dialog, navigate, mode, model, setMode, setModel]);
 
   const handleCommandExecute = useCallback(
     (index: number) => {
@@ -497,6 +506,13 @@ export function InputBar({ onSubmit, disabled = false }: Props) {
 
     return () => setResponder("base", null);
   }, [disabled, setResponder]);
+
+  useEffect(() => {
+    if (!composerRestoreText) return;
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.setText(composerRestoreText);
+  }, [composerRestoreText, composerRestoreToken]);
 
   useKeyboard((key) => {
     if (disabled) return;

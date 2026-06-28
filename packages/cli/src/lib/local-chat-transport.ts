@@ -31,6 +31,7 @@ import {
 import { isMcpToolName } from "../mcp/heuristics";
 import type { ResolvedModel } from "./local-model";
 import { formatChatStreamError } from "./stream-error";
+import { hasVisibleAssistantContent } from "@mocode/shared";
 
 /** Last user-visible text in the outgoing batch — used for MCP routing heuristics. */
 function lastUserText(messages: UIMessage[]): string {
@@ -51,14 +52,12 @@ function isMcpUserRequest(text: string): boolean {
   return /\bmcp\b/i.test(text) || /\bmcp__[\w-]+__[\w-]+/i.test(text);
 }
 
-/** Drops assistant placeholders left behind when a stream fails before any parts arrive. */
+/** Drops assistant rows with no user-visible content (empty or step-start-only placeholders). */
 export function stripIncompleteAssistantMessages<UI_MESSAGE extends UIMessage>(
   messages: UI_MESSAGE[],
 ): UI_MESSAGE[] {
   return messages.filter(
-    (message) =>
-      message.role !== "assistant" ||
-      (Array.isArray(message.parts) && message.parts.length > 0),
+    (message) => message.role !== "assistant" || hasVisibleAssistantContent(message),
   );
 }
 
@@ -86,6 +85,11 @@ export type LocalChatTransportOptions<UI_MESSAGE extends UIMessage> = {
 export class LocalChatTransport<UI_MESSAGE extends UIMessage>
   implements ChatTransport<UI_MESSAGE>
 {
+  private activeStream: {
+    chatId: string | undefined;
+    stream: ReadableStream<UIMessageChunk>;
+  } | null = null;
+
   constructor(private readonly opts: LocalChatTransportOptions<UI_MESSAGE>) {}
 
   /**
@@ -95,6 +99,7 @@ export class LocalChatTransport<UI_MESSAGE extends UIMessage>
   async sendMessages({
     messages,
     abortSignal,
+    chatId,
   }: Parameters<ChatTransport<UI_MESSAGE>["sendMessages"]>[0]): Promise<
     ReadableStream<UIMessageChunk>
   > {
@@ -142,8 +147,9 @@ export class LocalChatTransport<UI_MESSAGE extends UIMessage>
     });
 
     const onFinish = this.opts.onFinish;
+    const self = this;
 
-    return result.toUIMessageStream<UI_MESSAGE>({
+    const rawStream = result.toUIMessageStream<UI_MESSAGE>({
       originalMessages: nextMessages,
       onError: formatChatStreamError,
       messageMetadata({ part }) {
@@ -161,6 +167,7 @@ export class LocalChatTransport<UI_MESSAGE extends UIMessage>
         };
       },
       async onFinish(event) {
+        if (self.activeStream?.stream === stream) self.activeStream = null;
         if (!onFinish) return;
         await onFinish({
           messages: event.messages,
@@ -168,12 +175,55 @@ export class LocalChatTransport<UI_MESSAGE extends UIMessage>
         });
       },
     });
+
+    const stream = new ReadableStream<UIMessageChunk>({
+      start(controller) {
+        const reader = rawStream.getReader();
+        void (async () => {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) {
+                if (self.activeStream?.stream === stream) self.activeStream = null;
+                controller.close();
+                return;
+              }
+              controller.enqueue(value);
+            }
+          } catch (error) {
+            if (self.activeStream?.stream === stream) self.activeStream = null;
+            controller.error(error);
+          }
+        })();
+      },
+      cancel(reason) {
+        if (self.activeStream?.stream === stream) self.activeStream = null;
+        return rawStream.cancel(reason);
+      },
+    });
+
+    this.activeStream = { chatId, stream };
+
+    abortSignal?.addEventListener(
+      "abort",
+      () => {
+        if (this.activeStream?.stream === stream) this.activeStream = null;
+      },
+      { once: true },
+    );
+
+    return stream;
   }
 
   /**
-   * Stream resume is Phase 3 (HARNESS-07). BYOK returns null like the initial stub.
+   * Returns the in-process stream while generation is still running (HARNESS-07 BYOK).
    */
-  async reconnectToStream(): Promise<ReadableStream<UIMessageChunk> | null> {
-    return null;
+  async reconnectToStream({
+    chatId,
+  }: {
+    chatId: string;
+  }): Promise<ReadableStream<UIMessageChunk> | null> {
+    if (!this.activeStream || this.activeStream.chatId !== chatId) return null;
+    return this.activeStream.stream;
   }
 }
