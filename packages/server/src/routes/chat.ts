@@ -200,7 +200,7 @@ const app = new Hono<AuthenticatedEnv>()
         },
         consumeSseStream: ({ stream }) => {
           registerStreamBuffer(id, userId, replayBuffer);
-          replayBuffer.ingest(stream);
+          replayBuffer.ingest(stream.pipeThrough(new TextEncoderStream()));
         },
         async onFinish(event) {
           try {
@@ -216,7 +216,8 @@ const app = new Hono<AuthenticatedEnv>()
               isAborted: event.isAborted,
               messagesToPersist,
               responseMessage: event.responseMessage,
-              hasPendingToolCalls,
+              hasPendingToolCalls: (message) =>
+                hasPendingToolCalls(message as MocodeUIMessage),
             })
           ) {
             return;

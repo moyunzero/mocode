@@ -25,7 +25,7 @@ export function useCommandMenu():UseCommandMenuReturn {
     const [selectedIndex,setSelectedIndex] = useState(0);
     const [showCommandMenu,setShowCommandMenu] = useState(false);
 
-    const { push, pop, isTopLayer, setResponder } = useKeyboardLayer();
+    const { push, pop, isTopLayer } = useKeyboardLayer();
 
     // Closing the menu also releases the "command" keyboard layer.
     const close = ()=>{

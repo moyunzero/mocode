@@ -139,11 +139,11 @@ export function BotMessage({
     <box width="100%" alignItems="center">
       {groupConsecutiveParts(parts).map((group, i) => (
         <box key={group.key} width="100%" paddingTop={i === 0 ? 0 : 1}>
-          {group.parts.map((part, j) => {
+          {group.parts.map((part) => {
             if (part.type === "reasoning") {
               return (
                 <box
-                  key={`reasoning-${j}`}
+                  key={`${group.key}-reasoning-${part.text}`}
                   border={["left"]}
                   borderColor={colors.thinkingBorder}
                   customBorderChars={{
@@ -203,7 +203,7 @@ export function BotMessage({
 
             if (part.type === "text") {
               return (
-                <box key={`text-${j}`} paddingX={3} width="100%">
+                <box key={`${group.key}-text-${part.text}`} paddingX={3} width="100%">
                   <text>{part.text}</text>
                 </box>
               );

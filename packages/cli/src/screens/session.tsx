@@ -129,7 +129,7 @@ function SessionChat({
       if (statusRef.current !== "submitted" && statusRef.current !== "streaming") return;
       void abortRef.current();
     };
-  }, [session.id]);
+  }, []);
 
   useEffect(() => {
     if (hasAutoResumedRef.current) return;
@@ -205,7 +205,7 @@ function SessionChat({
     if (!scrollbox) return;
 
     return scrollToBottomAfterLayout(scrollbox);
-  }, [messages.length, isLoading, status]);
+  }, [isLoading]);
 
   return (
     <SessionShell
@@ -287,7 +287,7 @@ export function Session() {
         navigate("/", { replace: true });
         return;
       }
-      setSession(localSession as SessionData);
+      setSession(localSession as unknown as SessionData);
       return;
     }
 

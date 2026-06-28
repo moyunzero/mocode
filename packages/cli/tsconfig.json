@@ -2,6 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "jsxImportSource": "@opentui/react"
-  }
+    "jsxImportSource": "@opentui/react",
+    "types": ["bun"]
+  },
+  "exclude": ["src/lib/hydrate-message-parts.ts", "**/*.test.ts"]
 }

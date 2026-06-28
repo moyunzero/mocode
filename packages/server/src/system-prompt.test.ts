@@ -77,7 +77,7 @@ describe("buildSystemPrompt", () => {
 
     test("does not list bash in available tools", () => {
       const toolsSection = prompt.match(
-        /# Available Tools \(PLAN Mode\)([\s\S]*?)(?=\n  \*\*Tool Rules:\*\*|\n  # )/,
+        /# Available Tools \(PLAN Mode\)([\s\S]*?)(?=\n {2}\*\*Tool Rules:\*\*|\n {2}# )/,
       )?.[1];
       expect(toolsSection).toBeDefined();
       expect(toolsSection!).not.toMatch(/\bbash\b/);

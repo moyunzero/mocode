@@ -77,7 +77,7 @@ type ToastProps = {
 }
 
 function Toast({ currentToast }: ToastProps) {
-    const {width,height} = useTerminalDimensions();
+    const {width} = useTerminalDimensions();
     const { colors } = useTheme();
     if(!currentToast) return null;
 

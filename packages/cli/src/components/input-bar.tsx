@@ -1,6 +1,6 @@
 import { readdir } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
-import { useRef, useState, useCallback, useEffect, type RefObject } from "react";
+import { useRef, useState, useCallback, useEffect, useMemo, type RefObject } from "react";
 import { TextAttributes } from "@opentui/core";
 import type { TextareaRenderable, ScrollBoxRenderable } from "@opentui/core";
 import { useKeyboard, useRenderer } from "@opentui/react";
@@ -381,13 +381,6 @@ export function InputBar({
     syncMentionMenu(nextText, textarea.cursorOffset);
   }, [mentionCandidates, syncMentionMenu]);
 
-  const handleTextareaCursorChange = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    syncMentionMenu(textarea.plainText, textarea.cursorOffset);
-  }, [syncMentionMenu]);
-
   const handleCommand = useCallback((
     command: Command | undefined
   ) => {
@@ -412,7 +405,7 @@ export function InputBar({
         (message) => toast.show({ variant: "error", message }),
       );
     } else {
-      textarea.insertText(command.value + " ");
+      textarea.insertText(`${command.value} `);
     }
   }, [renderer, toast, dialog, navigate, mode, model, setMode, setModel]);
 
@@ -507,12 +500,20 @@ export function InputBar({
     return () => setResponder("base", null);
   }, [disabled, setResponder]);
 
+  const composerRestore = useMemo(
+    () =>
+      composerRestoreText != null
+        ? { text: composerRestoreText, token: composerRestoreToken }
+        : null,
+    [composerRestoreText, composerRestoreToken],
+  );
+
   useEffect(() => {
-    if (!composerRestoreText) return;
+    if (!composerRestore) return;
     const textarea = textareaRef.current;
     if (!textarea) return;
-    textarea.setText(composerRestoreText);
-  }, [composerRestoreText, composerRestoreToken]);
+    textarea.setText(composerRestore.text);
+  }, [composerRestore]);
 
   useKeyboard((key) => {
     if (disabled) return;

@@ -63,7 +63,7 @@ function jsonSchemaToInputSchema(schema: unknown) {
 export function mcpToolsToDynamicTools(
   serverName: string,
   tools: Array<Tool | McpToolDescriptor["tool"]>,
-  serverConfig?: McpServerEntry,
+  _serverConfig?: McpServerEntry,
 ): ToolSet {
   const result: ToolSet = {};
 
@@ -72,7 +72,7 @@ export function mcpToolsToDynamicTools(
     result[fullName] = dynamicTool({
       description: tool.description ?? `MCP tool ${tool.name} from ${serverName}`,
       inputSchema: jsonSchemaToInputSchema(tool.inputSchema),
-    });
+    } as never);
   }
 
   return result;

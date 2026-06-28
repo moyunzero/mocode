@@ -7,7 +7,7 @@ import { useToast } from "../providers/toast";
 import { useDialog } from "../providers/dialog";
 import { apiClient } from "../lib/api-client";
 import { getErrorMessage } from "../lib/http-errors";
-import { findSupportedChatModel, Mode, modeSchema } from "@mocode/shared";
+import { findSupportedChatModel, modeSchema } from "@mocode/shared";
 import { isLocalMode } from "../lib/local-mode";
 import { createLocalSession } from "../lib/local-sessions";
 import { hasRequiredKeys } from "../lib/keys";

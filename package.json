@@ -12,9 +12,16 @@
         "dev:cli": "bun run --watch packages/cli/src/index.tsx",
         "dev:server": "bun run --hot packages/server/src/index.ts",
         "build:cli": "bun run --filter @mocode/cli build",
-        "link:cli": "bun run build:cli && cd packages/cli && bun link"
+        "link:cli": "bun run build:cli && cd packages/cli && bun link",
+        "typecheck": "bunx tsc -p packages/shared/tsconfig.json --noEmit && bunx tsc -p packages/server/tsconfig.json --noEmit && bunx tsc -p packages/cli/tsconfig.json --noEmit && bunx tsc -p packages/database/tsconfig.json --noEmit",
+        "lint": "biome lint",
+        "test": "bun test packages/shared packages/server packages/cli",
+        "check": "bun run typecheck && bun run lint && bun run test"
     },
     "dependencies": {
         "dotenv": "^17.4.2"
+    },
+    "devDependencies": {
+        "@biomejs/biome": "2.5.1"
     }
 }

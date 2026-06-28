@@ -138,7 +138,7 @@ describe("reconnectToStream (D-12 BYOK)", () => {
       buildSystemPrompt: () => "test system prompt",
     });
 
-    const stream = await transport.sendMessages({
+    const _stream = await transport.sendMessages({
       trigger: "submit-message",
       chatId: "session-reconnect",
       messageId: undefined,
