@@ -2,6 +2,12 @@
 
 Guidance for any AI agent or contributor working on MoCode.
 
+## Coding discipline
+
+Follow [Karpathy behavioral guidelines](.cursor/rules/karpathy-behavioral-guidelines.mdc):
+think before coding, minimum diff, verifiable success criteria. Every changed line
+must trace directly to the request.
+
 ## UI standard — read before touching the CLI
 
 **[`DESIGN.md`](./DESIGN.md) is the single source of truth for all terminal UI.**

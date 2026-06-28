@@ -16,7 +16,7 @@
  * sends `[previousUser, assistantWithToolCalls]` instead of the full history,
  * because the server merges against stored session messages.
  */
-import { useMemo, useCallback, useRef, useEffect } from "react";
+import { useMemo, useCallback, useRef, useEffect, useState } from "react";
 import { useChat as useAiChat } from "@ai-sdk/react";
 import {
   DefaultChatTransport,
@@ -27,6 +27,7 @@ import {
 } from "ai";
 import { Mode, toolInputSchemas, type ModeType, type SupportedChatModelId, type ToolContracts } from "@mocode/shared";
 import { apiClient } from "../lib/api-client";
+import { getErrorMessage } from "../lib/http-errors";
 import { getAuth } from "../lib/auth";
 import { executeLocalTool } from "../lib/local-tools";
 import { requiresApproval, rememberSessionAllow } from "../lib/bash-approval";
@@ -41,7 +42,18 @@ import { isLocalMode } from "../lib/local-mode";
 import { updateLocalSession } from "../lib/local-sessions";
 import { resolveChatModel } from "../lib/local-model";
 import { LocalChatTransport, stripIncompleteAssistantMessages } from "../lib/local-chat-transport";
+import { hasVisibleAssistantContent } from "@mocode/shared";
 import { buildSystemPrompt } from "../lib/system-prompt";
+import {
+  collectPendingToolCallIds,
+  finalizeInterruptedAssistant,
+  detectResumeEligibility,
+  resolveResumeTransport,
+  type ResumeEligibility,
+} from "../lib/stream-interrupt";
+import { formatChatStreamError } from "../lib/stream-error";
+import { scheduleLocalSessionPersist } from "./use-chat-persist";
+import { killTrackedToolProcesses } from "../lib/tool-process-registry";
 
 /**
  * Multi-sentence model guidance returned when the user rejects a blocklisted bash command.
@@ -84,7 +96,58 @@ type ChatTools = {
 
 export type Message = UIMessage<ChatMessageMetadata, never, ChatTools>;
 
-export function useChat(sessionId: string, initialMessages: Message[]) {
+/** Read live Chat store (not React closure snapshot). */
+function snapshotChatMessages(chat: {
+  messages: Message[];
+  setMessages: (fn: (messages: Message[]) => Message[]) => void;
+}): Message[] {
+  let snapshot = chat.messages;
+  chat.setMessages((msgs) => {
+    snapshot = msgs;
+    return msgs;
+  });
+  return snapshot;
+}
+
+async function persistSessionMessages(sessionId: string, messages: Message[]): Promise<void> {
+  const safeMessages = stripIncompleteAssistantMessages(messages);
+  if (isLocalMode()) {
+    updateLocalSession(sessionId, safeMessages);
+    return;
+  }
+
+  const res = await apiClient.sessions[":id"].$patch({
+    param: { id: sessionId },
+    json: { messages: safeMessages as unknown as Record<string, unknown>[] },
+  });
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res));
+  }
+}
+
+function reportPersistError(
+  onPersistError: ((message: string) => void) | undefined,
+  sessionId: string,
+  error: unknown,
+): void {
+  if (
+    isLocalMode() &&
+    error instanceof Error &&
+    error.message.startsWith("Local session not found:")
+  ) {
+    return;
+  }
+  console.error("Failed to persist session", { sessionId, error });
+  if (onPersistError) {
+    onPersistError(error instanceof Error ? error.message : "Failed to save session");
+  }
+}
+
+export function useChat(
+  sessionId: string,
+  initialMessages: Message[],
+  options?: { onPersistError?: (message: string) => void },
+) {
   const dialog = useDialog();
   // Session-scoped allowlist: "Allow for this session" skips future prompts for the same
   // normalized command string. Owned here (not a global singleton) so each chat session
@@ -93,6 +156,11 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
   // MCP write approval session allowlist — keyed by full `mcp__<server>__<tool>` (Phase 02, D-15).
   // Separate from bash allowlist because MCP tools are named, not normalized shell strings.
   const sessionMcpAllowRef = useRef(new Set<string>());
+  /** Tool calls Esc'd while local exec is in-flight — skip late addToolOutput + auto-send. */
+  const skipToolOutputIdsRef = useRef(new Set<string>());
+  /** Blocks sendAutomaticallyWhen after Esc finalizes tool output-error parts. */
+  const turnInterruptedRef = useRef(false);
+  const [turnInterrupted, setTurnInterrupted] = useState(false);
 
   const transport = useMemo(() => {
     // BYOK: inference + tool schema merge run in-process; MCP execution stays in onToolCall below.
@@ -104,11 +172,30 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
       });
     }
 
+    const chatFetch = (async (input, init) => {
+        const response = await globalThis.fetch(input, init);
+        if (!response.ok) {
+          const message = await getErrorMessage(response);
+          throw new Error(message);
+        }
+        return response;
+      }) as typeof globalThis.fetch;
+
     return new DefaultChatTransport<Message>({
       api: apiClient.chat.$url().toString(),
+      fetch: chatFetch,
       headers() {
         const auth = getAuth();
         return auth ? { Authorization: `Bearer ${auth.token}` } : new Headers();
+      },
+      prepareReconnectToStreamRequest({ id }) {
+        return {
+          api: apiClient.chat[":id"].stream.$url({ param: { id } }).toString(),
+          headers: (() => {
+            const auth = getAuth();
+            return auth ? { Authorization: `Bearer ${auth.token}` } : new Headers();
+          })(),
+        };
       },
       prepareSendMessagesRequest({ messages }) {
         const message = messages[messages.length - 1];
@@ -144,8 +231,8 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
             // Execution remains on CLI — server never calls MCP SDK.
             mcpTools,
           },
-        }
-      }
+        };
+      },
     });
   }, [sessionId]);
 
@@ -154,6 +241,9 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
     messages: initialMessages,
     transport,
     async onToolCall({ toolCall }) {
+      const shouldSkipToolOutput = () =>
+        skipToolOutputIdsRef.current.has(toolCall.toolCallId);
+
       // Tool-continuation assistant messages may omit metadata — scan backward like transport.
       const mode =
         chat.messages.findLast((message) => message.metadata?.mode)?.metadata?.mode ??
@@ -186,6 +276,7 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
             mode,
             dialog,
             addToolOutput: (params) => {
+              if (shouldSkipToolOutput()) return;
               if (params.state === "output-error") {
                 addMcpToolOutput({
                   toolCallId: params.toolCallId,
@@ -226,12 +317,14 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
         }
 
         const output = await executeLocalTool(toolCall.toolName, toolCall.input, mode);
+        if (shouldSkipToolOutput()) return;
         chat.addToolOutput({
           tool: toolCall.toolName as keyof ChatTools,
           toolCallId: toolCall.toolCallId,
           output,
         });
       } catch (error) {
+        if (shouldSkipToolOutput()) return;
         chat.addToolOutput({
           tool: toolCall.toolName as keyof ChatTools,
           toolCallId: toolCall.toolCallId,
@@ -240,29 +333,114 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
         });
       }
     },
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    sendAutomaticallyWhen: (params) => {
+      if (turnInterruptedRef.current) return false;
+      return lastAssistantMessageIsCompleteWithToolCalls(params);
+    },
   });
 
   useEffect(() => {
     if (!isLocalMode()) return;
-    if (chat.status !== "ready") return;
-
-    try {
-      updateLocalSession(sessionId, chat.messages);
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message.startsWith("Local session not found:")
-      ) {
-        return;
-      }
-      console.error("Failed to persist local session", { sessionId, error });
+    if (chat.status !== "streaming" && chat.status !== "submitted" && chat.status !== "ready") {
+      return;
     }
-  }, [sessionId, chat.messages, chat.status]);
+
+    scheduleLocalSessionPersist({
+      status: chat.status,
+      sessionId,
+      messages: chat.messages,
+      debounceMs: 400,
+      persistFn: () => {
+        void persistSessionMessages(sessionId, chat.messages).catch((error) => {
+          reportPersistError(options?.onPersistError, sessionId, error);
+        });
+      },
+    });
+  }, [sessionId, chat.messages, chat.status, options?.onPersistError]);
+
+  // Re-apply tool Interrupted markers after chat.stop() settles (SDK may overwrite setMessages).
+  useEffect(() => {
+    if (!turnInterrupted) return;
+    const pending = collectPendingToolCallIds(chat.messages);
+    if (pending.length === 0) return;
+
+    chat.setMessages((msgs) => finalizeInterruptedAssistant(msgs));
+  }, [turnInterrupted, chat.status, chat.messages, chat.setMessages]);
+
+  const interrupt = useCallback(() => {
+    turnInterruptedRef.current = true;
+    setTurnInterrupted(true);
+    killTrackedToolProcesses();
+
+    const snapshot = snapshotChatMessages(chat);
+    for (const toolCallId of collectPendingToolCallIds(snapshot)) {
+      skipToolOutputIdsRef.current.add(toolCallId);
+    }
+
+    chat.stop();
+
+    chat.setMessages((msgs) => finalizeInterruptedAssistant(msgs));
+
+    queueMicrotask(() => {
+      const live = snapshotChatMessages(chat);
+      const finalized = finalizeInterruptedAssistant(live);
+      void persistSessionMessages(sessionId, finalized).catch((error) => {
+        reportPersistError(options?.onPersistError, sessionId, error);
+      });
+
+      const pendingAfter = collectPendingToolCallIds(finalized);
+      if (pendingAfter.length > 0) {
+        chat.setMessages((msgs) => finalizeInterruptedAssistant(msgs));
+      }
+    });
+  }, [chat, sessionId, options?.onPersistError]);
+
+  const getEligibility = useCallback((): ResumeEligibility => {
+    return detectResumeEligibility(chat.messages, chat.status);
+  }, [chat.messages, chat.status]);
+
+  const continueGeneration = useCallback(
+    async (params: { mode: ModeType; model: SupportedChatModelId }) => {
+      turnInterruptedRef.current = false;
+      setTurnInterrupted(false);
+      skipToolOutputIdsRef.current.clear();
+      const eligibility = detectResumeEligibility(chat.messages, chat.status);
+      const action = resolveResumeTransport(eligibility);
+      if (action === "none") return;
+
+      chat.clearError();
+
+      const lastUser = chat.messages.findLast((message) => message.role === "user");
+      if (!lastUser) return;
+
+      const userIndex = chat.messages.findIndex((message) => message.id === lastUser.id);
+      const trimmed = chat.messages.slice(0, userIndex + 1).map((message) => ({
+        ...message,
+        metadata: {
+          ...message.metadata,
+          mode: params.mode,
+          model: params.model,
+        },
+      }));
+      chat.setMessages(trimmed);
+
+      await chat.regenerate({ messageId: lastUser.id });
+
+      const liveAfter = snapshotChatMessages(chat);
+      const liveLast = liveAfter.at(-1);
+      if (liveLast?.role === "assistant" && !hasVisibleAssistantContent(liveLast)) {
+        chat.setMessages(stripIncompleteAssistantMessages(liveAfter));
+        await chat.regenerate({ messageId: lastUser.id });
+      }
+    },
+    [chat.messages, chat.regenerate, chat.setMessages, chat.status, chat.clearError],
+  );
+
+  const resumeStream = useCallback(async () => {
+    await chat.resumeStream();
+  }, [chat.resumeStream]);
 
   useEffect(() => {
-    if (!chat.error || !isLocalMode()) return;
-
     const pruned = stripIncompleteAssistantMessages(chat.messages);
     if (pruned.length === chat.messages.length) return;
 
@@ -271,6 +449,9 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
 
   const submit = useCallback(
     (params: { userText: string; mode: ModeType; model: SupportedChatModelId }) => {
+      turnInterruptedRef.current = false;
+      setTurnInterrupted(false);
+      skipToolOutputIdsRef.current.clear();
       return chat.sendMessage({
         text: params.userText,
         metadata: {
@@ -285,9 +466,16 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
   return {
     messages: chat.messages,
     status: chat.status,
-    error: chat.error,
+    turnInterrupted,
+    error: chat.error
+      ? new Error(formatChatStreamError(chat.error))
+      : undefined,
     submit,
-    abort: chat.stop,
-    interrupt: chat.stop,
+    abort: interrupt,
+    interrupt,
+    continueGeneration,
+    resumeStream,
+    getEligibility,
+    setMessages: chat.setMessages,
   };
 };

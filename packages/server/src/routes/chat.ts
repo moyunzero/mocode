@@ -51,9 +51,20 @@ import {
 import { buildSystemPrompt } from "../system-prompt";
 import type { AuthenticatedEnv } from "../middleware/require-auth";
 import { requireCreditsBalance } from "../middleware/require-credits-balance";
+import {
+  getActiveStreamResponse,
+  clearActiveStream,
+  registerStreamBuffer,
+} from "../lib/active-stream-registry";
+import { StreamReplayBuffer } from "../lib/stream-buffer";
 import { calculateCreditsForUsage } from "../lib/credits";
 import { ingestAiUsage } from "../lib/polar";
 import { isSupportedChatModel, resolveChatModel } from "../lib/model";
+import {
+  normalizeInterruptedMessages,
+  stripIncompleteAssistantMessages,
+} from "../lib/stream-interrupt";
+import { shouldPersistOnFinish } from "../lib/chat-abort";
 
 type ChatMessageMetadata = {
   mode?: ModeType;
@@ -112,6 +123,7 @@ const app = new Hono<AuthenticatedEnv>()
       const userId = c.get("userId");
       const { id, messages, mode, model, mcpTools } = c.req.valid("json");
 
+      try {
       const session = await db.session.findUnique({
         where: { id, userId },
       });
@@ -148,7 +160,7 @@ const app = new Hono<AuthenticatedEnv>()
       }
 
       const nextMessages = await validateUIMessages<MocodeUIMessage>({
-        messages: mergedMessages,
+        messages: stripIncompleteAssistantMessages(mergedMessages),
         tools,
       });
       const modelMessages = await convertToModelMessages(nextMessages, { tools });
@@ -181,18 +193,39 @@ const app = new Hono<AuthenticatedEnv>()
             ...(completedUsage ? { usage: completedUsage } : {}),
           };
         },
+        consumeSseStream: ({ stream }) => {
+          const buffer = new StreamReplayBuffer();
+          registerStreamBuffer(id, userId, buffer);
+          buffer.ingest(stream);
+        },
         async onFinish(event) {
-          if (event.isAborted) return;
+          try {
+          let messagesToPersist = event.messages;
 
-          // Wait for the CLI to finish all tool calls before persisting/billing.
-          if (hasPendingToolCalls(event.responseMessage)) return;
+          if (event.isAborted) {
+            clearActiveStream(id);
+            messagesToPersist = normalizeInterruptedMessages(event.messages);
+          }
+
+          if (
+            !shouldPersistOnFinish({
+              isAborted: event.isAborted,
+              messagesToPersist,
+              responseMessage: event.responseMessage,
+              hasPendingToolCalls,
+            })
+          ) {
+            return;
+          }
 
           await db.session.update({
             where: { id, userId },
             data: {
-              messages: event.messages as unknown as Prisma.InputJsonValue,
+              messages: messagesToPersist as unknown as Prisma.InputJsonValue,
             },
           });
+
+          clearActiveStream(id);
 
           if (!completedUsage) return;
 
@@ -216,12 +249,36 @@ const app = new Hono<AuthenticatedEnv>()
               userId,
             });
           }
+          } catch (error) {
+            console.error("Failed to persist chat finish", { error, sessionId: id });
+          }
         },
         onError(error) {
+          clearActiveStream(id);
           return error instanceof Error ? error.message : String(error);
         },
       });
+      } catch (error) {
+        clearActiveStream(id);
+        const message = error instanceof Error ? error.message : "Chat request failed";
+        console.error("Chat handler failed before stream", { sessionId: id, error });
+        return c.json({ error: message }, 502);
+      }
     },
-  );
+  )
+  .get("/:id/stream", requireCreditsBalance, async (c) => {
+    const userId = c.get("userId");
+    const id = c.req.param("id");
+
+    const session = await db.session.findUnique({
+      where: { id, userId },
+    });
+
+    if (!session) {
+      return c.body(null, 404);
+    }
+
+    return getActiveStreamResponse(id, userId);
+  });
 
 export default app;

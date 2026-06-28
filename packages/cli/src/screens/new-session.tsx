@@ -93,7 +93,7 @@ export function NewSession() {
     },[state,navigate,toast,dialog]);
 
 
-    if(!state) return null;
+    if (!state) return null;
     return (
         <SessionShell 
             onSubmit={()=>{}} 

@@ -42,6 +42,28 @@ export function scrollIndexIntoViewAfterLayout(
   };
 }
 
+type ScrollboxLike = {
+  scrollHeight: number;
+  scrollTo: (position: number | { x: number; y: number }) => void;
+  viewport: { height: number };
+};
+
+/** Pin transcript to the latest content after OpenTUI measures new rows. */
+export function scrollToBottomAfterLayout(scrollbox: ScrollboxLike): () => void {
+  let outer: ReturnType<typeof setTimeout> | undefined;
+  let inner: ReturnType<typeof setTimeout> | undefined;
+  outer = setTimeout(() => {
+    inner = setTimeout(() => {
+      const maxTop = Math.max(0, scrollbox.scrollHeight - scrollbox.viewport.height);
+      scrollbox.scrollTo(maxTop);
+    }, 0);
+  }, 0);
+  return () => {
+    if (outer !== undefined) clearTimeout(outer);
+    if (inner !== undefined) clearTimeout(inner);
+  };
+}
+
 export function visibleItemCount(itemCount: number, maxVisible: number): number {
   return Math.min(itemCount, maxVisible);
 }

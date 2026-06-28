@@ -63,7 +63,7 @@ app.onError((err, c) => {
 
 // Phase 9: protect data routes; /auth/callback stays public for OAuth relay.
 // Phase 10: billing checkout/portal require auth; /billing/success is public (browser redirect).
-// Use `/*` so nested routes (e.g. /chat/:sessionId/resume) are covered — bare
+// Use `/*` so nested routes (e.g. /chat/:sessionId/stream) are covered — bare
 // `/chat` only matches the exact path in Hono's router.
 app.use("/sessions/*", requireAuth);
 app.use("/chat/*", requireAuth);

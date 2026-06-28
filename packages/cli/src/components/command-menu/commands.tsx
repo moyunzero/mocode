@@ -8,6 +8,8 @@ import {
   McpDialogContent,
 } from "../dialogs";
 import { SUPPORTED_CHAT_MODELS } from "@mocode/shared";
+import { getSessionChatActions } from "../../providers/session-chat-actions";
+import { resolveResumeTransport } from "../../lib/stream-interrupt";
 
 // browser OAuth login and local token lifecycle.
 import { performLogin } from "../../lib/oauth";
@@ -63,6 +65,32 @@ export const COMMANDS: Command[] = [
       ctx.dialog.open({
         title: "Select Session",
         children: <SessionDialogContent />
+      });
+    },
+  },
+  {
+    name: "resume",
+    description: "Regenerate from last user message (not Claude Code session picker)",
+    value: "/resume",
+    action: (ctx) => {
+      const actions = getSessionChatActions();
+      if (!actions) {
+        ctx.toast.show({ variant: "error", message: "Open a session first" });
+        return;
+      }
+
+      const eligibility = actions.getEligibility();
+      const transport = resolveResumeTransport(eligibility);
+      if (transport === "none") {
+        ctx.toast.show({ variant: "error", message: "No resumable generation" });
+        return;
+      }
+
+      void actions.continueGeneration({ mode: ctx.mode, model: ctx.model }).catch((error) => {
+        ctx.toast.show({
+          variant: "error",
+          message: error instanceof Error ? error.message : "Resume failed",
+        });
       });
     },
   },

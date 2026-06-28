@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react";
 import { useParams, useLocation, useNavigate } from "react-router";
 import { useKeyboard } from "@opentui/react";
+import type { ScrollBoxRenderable } from "@opentui/core";
 import { type ModeType, type SupportedChatModelId } from "@mocode/shared";
 import type { InferResponseType } from "hono/client";
 import { SessionShell } from "../components/session-shell";
@@ -20,6 +21,17 @@ import { getLocalSession } from "../lib/local-sessions";
 import { useKeyboardLayer } from "../providers/keyboard-layer";
 import { parseInitialMessages, sessionLocationSchema } from "../lib/session-navigation";
 import { initMcpOnSessionMount } from "../mcp/session-mcp";
+import {
+  shouldAutoResumeOnMount,
+  detectResumeEligibility,
+} from "../lib/stream-interrupt";
+import { resolvePreResponseEsc } from "../lib/composer-restore";
+import { stripIncompleteAssistantMessages } from "../lib/local-chat-transport";
+import {
+  SessionChatActionsProvider,
+  useRegisterSessionChatActions,
+} from "../providers/session-chat-actions";
+import { scrollToBottomAfterLayout } from "../utils/list-scroll-nav";
 
 /**
  * Phase 11 session screen.
@@ -52,12 +64,13 @@ function ChatMessage(
       model={msg.metadata?.model ?? "unknown"}
       mode={msg.metadata?.mode ?? "BUILD"}
       durationMs={msg.metadata?.durationMs}
+      usage={msg.metadata?.usage}
       streaming={streaming}
     />
   );
 };
 
-function SessionChat({ 
+function SessionChat({
   session,
   initialPrompt,
 }: { 
@@ -67,26 +80,98 @@ function SessionChat({
   const [initialMessages] = useState(() => parseInitialMessages(session.messages));
   const { mode, model } = usePromptConfig();
   const { isTopLayer } = useKeyboardLayer();
-  const { messages, status, submit, abort, interrupt, error } = useChat(
-    session.id,
-    initialMessages
-  );
+  const { show: showToast } = useToast();
+  const {
+    messages,
+    status,
+    turnInterrupted,
+    submit,
+    abort,
+    interrupt,
+    error,
+    continueGeneration,
+    resumeStream,
+    getEligibility,
+    setMessages,
+  } = useChat(session.id, initialMessages, {
+    onPersistError: (message) => {
+      showToast({ variant: "error", message });
+    },
+  });
   const hasSubmittedInitialPromptRef = useRef(false);
+  const hasAutoResumedRef = useRef(false);
+  const lastSubmittedTextRef = useRef("");
+  const [composerRestoreText, setComposerRestoreText] = useState<string | null>(null);
+  const [composerRestoreToken, setComposerRestoreToken] = useState(0);
+  const transcriptScrollRef = useRef<ScrollBoxRenderable>(null);
+  const statusRef = useRef(status);
+  statusRef.current = status;
+
+  const sessionActions = useMemo(
+    () => ({
+      continueGeneration,
+      resumeStream,
+      getEligibility,
+    }),
+    [continueGeneration, resumeStream, getEligibility],
+  );
+  useRegisterSessionChatActions(sessionActions);
+
+  const abortRef = useRef(abort);
+  abortRef.current = abort;
 
   useEffect(() => {
     return initMcpOnSessionMount(process.cwd());
   }, []);
 
-  // Stop the pending reply when the user leaves this session.
+  // Stop in-flight generation when leaving session — skip when already idle.
   useEffect(() => {
     return () => {
-      void abort();
+      if (statusRef.current !== "submitted" && statusRef.current !== "streaming") return;
+      void abortRef.current();
     };
-  }, [abort]);
+  }, [session.id]);
 
-  // Let the user cancel a reply even before the first streamed chunk arrives.
+  useEffect(() => {
+    if (hasAutoResumedRef.current) return;
+    if (initialPrompt && !hasSubmittedInitialPromptRef.current) return;
+
+    const eligibility = detectResumeEligibility(initialMessages, "ready");
+    const shouldAuto = shouldAutoResumeOnMount({
+      eligibility,
+      hasAutoResumed: hasAutoResumedRef.current,
+      initialPromptPending: false,
+    });
+    if (!shouldAuto) return;
+    hasAutoResumedRef.current = true;
+    void continueGeneration({ mode, model });
+  }, [initialMessages, initialPrompt, continueGeneration, mode, model]);
+
+  // Esc: interrupt streaming, or restore composer before first token (D-03).
   useKeyboard((key) => {
-    if (key.name === "escape" && isTopLayer("base") && status === "streaming") {
+    if (key.name !== "escape" || !isTopLayer("base")) return;
+
+    const escResult =
+      status === "submitted" || status === "streaming"
+        ? resolvePreResponseEsc({
+            status,
+            messages,
+            lastSubmittedText: lastSubmittedTextRef.current,
+          })
+        : null;
+
+    if (escResult) {
+      key.preventDefault();
+      interrupt();
+      if (escResult.removeEmptyAssistant) {
+        setMessages(stripIncompleteAssistantMessages(messages));
+      }
+      setComposerRestoreText(escResult.composerRestoreText);
+      setComposerRestoreToken((token) => token + 1);
+      return;
+    }
+
+    if (status === "streaming") {
       key.preventDefault();
       interrupt();
     }
@@ -95,6 +180,7 @@ function SessionChat({
   useEffect(() => {
     if (!initialPrompt || hasSubmittedInitialPromptRef.current) return;
     hasSubmittedInitialPromptRef.current = true;
+    lastSubmittedTextRef.current = initialPrompt.message;
     void submit({
       userText: initialPrompt.message,
       mode: initialPrompt.mode,
@@ -102,23 +188,55 @@ function SessionChat({
     });
   }, [initialPrompt, submit]);
 
+  const lastMessage = messages.at(-1);
+  const isLoading =
+    (status === "submitted" || status === "streaming") && !turnInterrupted;
+  const pendingTranscriptReply = isLoading && lastMessage?.role === "user";
+  const pendingMode = lastMessage?.metadata?.mode ?? mode;
+  const pendingModel = lastMessage?.metadata?.model ?? model;
+
+  useLayoutEffect(() => {
+    if (!isLoading) return;
+    const scrollbox = transcriptScrollRef.current;
+    if (!scrollbox) return;
+
+    return scrollToBottomAfterLayout(scrollbox);
+  }, [messages.length, isLoading, status]);
+
   return (
     <SessionShell
-      onSubmit={(text) => submit({ userText: text, mode, model })}
-      loading={status === "submitted" || status === "streaming"}
-      interruptible={status === "submitted" || status === "streaming"}
+      onSubmit={(text) => {
+        lastSubmittedTextRef.current = text;
+        setComposerRestoreText(null);
+        setComposerRestoreToken(0);
+        void submit({ userText: text, mode, model });
+      }}
+      loading={isLoading}
+      interruptible={isLoading}
+      composerRestoreText={composerRestoreText}
+      composerRestoreToken={composerRestoreToken}
+      transcriptScrollRef={transcriptScrollRef}
     >
       {messages.map((msg, index) => (
         <ChatMessage
           key={msg.id}
           msg={msg}
           streaming={
+            !turnInterrupted &&
             (status === "submitted" || status === "streaming") &&
             index === messages.length - 1 &&
             msg.role === "assistant"
           }
         />
       ))}
+      {pendingTranscriptReply ? (
+        <BotMessage
+          parts={[]}
+          model={pendingModel}
+          mode={pendingMode}
+          streaming
+        />
+      ) : null}
       {error && <ErrorMessage message={error.message} />}
     </SessionShell>
   );
@@ -143,12 +261,14 @@ export function Session() {
   const [session, setSession] = useState<SessionData | null>(prefetched?.session ?? null);
 
   useEffect(() => {
-    // Skip fetch if session was passed via location state
     if (prefetched?.session) return;
 
-    setSession(null);
-
     if (!id) return;
+
+    // Already showing this session — don't clear when router state is consumed.
+    if (session?.id === id) return;
+
+    setSession(null);
 
     let ignore = false;
 
@@ -190,17 +310,19 @@ export function Session() {
     return () => {
       ignore = true;
     };
-  }, [id, prefetched, toast, navigate]);
+  }, [id, prefetched?.local, prefetched?.session, session?.id, toast, navigate]);
 
   if (!session) {
     return <SessionShell onSubmit={() => {}} inputDisabled loading />;
   }
 
   return (
-    <SessionChat 
-      key={session.id} 
-      session={session} 
-      initialPrompt={prefetched?.initialPrompt}
-    />
+    <SessionChatActionsProvider>
+      <SessionChat
+        key={session.id}
+        session={session}
+        initialPrompt={prefetched?.initialPrompt}
+      />
+    </SessionChatActionsProvider>
   );
 };

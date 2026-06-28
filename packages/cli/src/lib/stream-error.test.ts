@@ -13,4 +13,10 @@ describe("formatChatStreamError", () => {
   test("handles null", () => {
     expect(formatChatStreamError(null)).toBe("Unknown error");
   });
+
+  test("unwraps server JSON error envelope", () => {
+    expect(
+      formatChatStreamError(new Error('{"error":"Internal Server Error"}')),
+    ).toBe("Internal Server Error");
+  });
 });

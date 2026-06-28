@@ -33,4 +33,26 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # GSD local planning (not synced to GitHub)
 .planning/
 
+# internal design notes (not synced to GitHub)
 doc/
+
+# MoCode local config (machine-specific MCP paths; global config lives in ~/.mocode/)
+.mocode/
+
+# agent skills cache (downloaded locally; see skills-lock.json)
+.agents/
+skills-lock.json
+
+# scratch / local test artifacts
+tmp/
+
+# code intelligence indexes (regenerated locally)
+.codegraph/
+
+# Understand-Anything knowledge graph (regenerated locally)
+.understand-anything/
+
+# Cursor IDE — keep shared rules, ignore local runtime logs & state
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**

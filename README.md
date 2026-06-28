@@ -19,7 +19,7 @@ MoCode is a Bun monorepo that pairs a rich **TUI client** with a **Hono API serv
 | **Dual agent modes** | **Plan** — read-only exploration and architecture. **Build** — full read/write/bash toolset for implementation. |
 | **Local tool execution** | The server defines tools; the CLI runs them against `process.cwd()` with path sandboxing. |
 | **Multi-provider models** | Anthropic, OpenAI, Google, Groq, Cerebras, and OpenRouter — switch models mid-session with `/models`. |
-| **Session persistence** | Conversations stored in PostgreSQL, scoped per authenticated user. Resume interrupted streams. |
+| **Session persistence & recovery** | PostgreSQL (SaaS) or local JSON (`--local`). Esc keeps partial text; tool Esc marks `Interrupted by user` and stops immediately; auto-resume on user-only tail; partial assistant uses `/resume` (regenerate). See [Session recovery](#session-recovery). |
 | **Rich TUI** | Built with [OpenTUI](https://github.com/opentui/opentui) + React 19 — themes, dialogs, keyboard layers, and slash commands. |
 | **OAuth sign-in** | Browser-based PKCE flow via Clerk; tokens stored at `~/.mocode/auth.json`. |
 | **Credits billing** | Polar-powered prepaid credits gate usage; `/upgrade` and `/usage` open checkout and portal in the browser. |
@@ -164,6 +164,7 @@ See [`.env.example`](./.env.example) for the full list and inline comments.
 | `/agents` | Switch between **Build** and **Plan** modes |
 | `/models` | Select an AI model |
 | `/sessions` | Browse and resume past sessions |
+| `/resume` | **Regenerate** from the last user message (after Esc on a partial assistant) |
 | `/theme` | Change the color theme |
 | `/login` | Sign in via browser (Clerk OAuth) |
 | `/logout` | Sign out locally |
@@ -179,9 +180,29 @@ Type `/` in the input bar to open the command palette.
 |---|---|
 | `Tab` | Toggle Build ↔ Plan mode |
 | `Enter` | Submit message |
+| `Esc` | Interrupt streaming; restore composer before first token; mark running tools `Interrupted by user` |
 | `Shift+Enter` / `Ctrl+J` / `Option+Enter` | Insert newline (terminal-dependent) |
 
 On macOS Terminal.app, run `mocode --terminal-setup` once to enable Option-as-Meta for newline.
+
+### Session recovery
+
+Storage: **SaaS** → PostgreSQL; **`mocode --local`** → `~/.mocode/sessions/` JSON files.
+
+| Scenario | Behavior |
+|----------|----------|
+| Esc during streaming text | Partial assistant text **kept** in transcript; survives session reopen |
+| Esc before first visible token | **Restores composer** text; strips empty assistant placeholder |
+| Esc while tool (bash/MCP) runs | Tool line shows **`Interrupted by user`**; generation **stops immediately** (local subprocess killed) |
+| Reopen session, last message is **user** only | Generation **starts automatically** (no `/resume`) |
+| Reopen session, last message is **partial assistant** | Does **not** auto-resume; run **`/resume`** manually |
+| `/resume` on partial assistant | **Regenerates** a full new reply from the last user turn (not append-in-place) |
+
+> **Note:** MoCode `/resume` continues interrupted **generation** within the current session. Claude Code's `/resume` opens the **session picker** — use MoCode **`/sessions`** for that.
+
+Interrupted assistant footers show only dim `◉ Build › model` (and duration when available)—**no** uppercase `INTERRUPTED` banner.
+
+Implementation details: [`doc/harness-phase-03-stream-reliability-notes.md`](./doc/harness-phase-03-stream-reliability-notes.md).
 
 ---
 
@@ -234,10 +255,8 @@ bun run dev:server
 # Build CLI binary
 bun run build:cli
 
-# Run tests
-bun test --cwd packages/cli
-bun test --cwd packages/server
-bun test --cwd packages/shared
+# Run tests (CLI + server — 193 tests incl. stream reliability)
+bun test packages/cli packages/server
 
 # Test LLM provider connectivity
 bun run --cwd packages/server test:providers
